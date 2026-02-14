@@ -3,21 +3,33 @@ import yaml
 from data.dataloader import get_dataloader
 from trainer.base import BaseTrainer
 import torch
-
+from matplotlib import pyplot as plt
+from inference.inference import predict_batch, predict_single_image
+from pathlib import Path
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Simple DL Project Training")
     parser.add_argument(
         "--config", 
         type=str, 
-        default="configs/resnet.yaml",
-        help="Path to the YAML config file (default: configs/resnet.yaml)"
+        default="./configs/cnn.yaml",
+        help="Path to the YAML config file (default: configs/cnn.yaml)"
     )
     parser.add_argument(
         "--device",
         type=str,
-        default=None,
+        default="cuda",
         help="Override device: cuda / cpu / mps (optional)"
+    )
+    parser.add_argument(
+        "--predict",
+        type=str,
+        help="Path to image for prediction. If 'batch', predict a random batch from test set."
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        help="Path to model checkpoint for prediction"
     )
 
     
@@ -43,8 +55,35 @@ def main():
 
     # 可选：命令行参数覆盖 config 中的值
     if args.device:
-        config["device"] = args.device  # 假设 config 里有 device 字段
+        config["device"] = args.device
 
+    # 如果是预测模式
+    if args.predict:
+        if not args.checkpoint:
+            print("Error: --checkpoint is required for prediction mode")
+            return
+            
+        # 只需要测试集用于 batch 预测，或者根本不需要 dataloader (单图预测)
+        _, test_loader = get_dataloader(config)
+        
+        # 初始化 Trainer 来构建模型（复用 BaseTrainer 的构建逻辑）
+        trainer = BaseTrainer(config=config, train_loader=None, val_loader=test_loader)
+        
+        # 加载权重
+        print(f"Loading checkpoint: {args.checkpoint}")
+        checkpoint = torch.load(args.checkpoint, map_location=trainer.device)
+        trainer.model.load_state_dict(checkpoint["model_state_dict"])
+        
+        if args.predict == 'batch':
+            print("Predicting a random batch from test set...")
+            predict_batch(trainer.model, test_loader, trainer.device)
+        else:
+            print(f"Predicting single image: {args.predict}")
+            predict_single_image(trainer.model, args.predict, trainer.device)
+            
+        return
+
+    # 训练模式
     # 数据加载器
     train_loader, test_loader = get_dataloader(config)
 

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 
-class SimpleCNN(nn.Module):
+class SimpleCNN(nn.Module): # 继承于nn.Module
     """
     一个简单但效果不错的CNN，适合MNIST手写数字分类
     目标：参数少、训练快、测试准确率轻松99%+
@@ -22,7 +22,7 @@ class SimpleCNN(nn.Module):
             act = nn.SiLU()
         else:
             act = nn.ReLU()
-        
+        # 组织网络提取特征
         self.features = nn.Sequential(
             # Block 1
             nn.Conv2d(1, 32, kernel_size=3, padding=1),     # 28→28
@@ -45,7 +45,7 @@ class SimpleCNN(nn.Module):
             # 全局平均池化（比flatten更现代，参数更少）
             nn.AdaptiveAvgPool2d((1, 1)),
         )
-        
+        # 使用线性全连接层作为分类器
         self.classifier = nn.Sequential(
             nn.Flatten(),
             nn.Dropout(dropout_rate),
@@ -61,13 +61,17 @@ class SimpleCNN(nn.Module):
 
     def _init_weights(self):
         for m in self.modules():
+            # 卷积层
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                # 处理偏置
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
+            # 归一层
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.ones_(m.weight)
                 nn.init.zeros_(m.bias)
+            # 全连接层
             elif isinstance(m, nn.Linear):
                 nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.zeros_(m.bias)
