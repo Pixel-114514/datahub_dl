@@ -8,6 +8,7 @@ from datetime import datetime
 
 from utils.logger import log
 import models
+from trainer.animator import Animator
 
 class BaseTrainer:
 
@@ -159,9 +160,18 @@ class BaseTrainer:
         epochs = self.cfg["train"]["epochs"]
         save_interval = self.cfg.get("save_interval", 1)  # 每多少 epoch 保存一次
 
+        # 初始化 Animator
+        animator = Animator(xlabel='epoch', xlim=[1, epochs], legend=['train loss', 'val acc'])
+
         for epoch in range(self.start_epoch, epochs):
             train_loss = self.train_one_epoch(epoch)
             val_acc = self.evaluate(epoch)
+
+            # 更新可视化
+            if val_acc is not None:
+                animator.add(epoch + 1, (train_loss, val_acc))
+            else:
+                animator.add(epoch + 1, (train_loss, None))
 
             # 更新 best
             if val_acc is not None and val_acc > self.best_acc:
