@@ -1,0 +1,32 @@
+seed: 42
+
+device: cuda   # cuda / cpu
+
+save_dir: ./checkpoints
+save_interval: 5
+exp_name: vae_mnist   # 不写会自动生成
+
+# =========================
+# Training
+# =========================
+train:
+  epochs: 70
+  lr: 0.001
+  batch_size: 128
+
+# =========================
+# Model
+# =========================
+model:
+  name: vae
+  params:
+    latent_dim: 20
+
+# =========================
+# Data
+# =========================
+data:
+  dataset: mnist         # 你可以在 dataloader 里判断
+  root: ./data
+  image_size: 28
+  channels: 1
