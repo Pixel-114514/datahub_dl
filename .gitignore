@@ -1,3 +1,4 @@
 checkpoints
-data/MINST/
+fashion_data/
+data/MNIST/
 inference_results
