@@ -2,6 +2,7 @@ seed: 42
 
 device: cuda   # cuda / cpu
 
+
 save_dir: ./checkpoints
 save_interval: 5
 exp_name: vae_mnist   # 不写会自动生成
@@ -22,6 +23,10 @@ model:
   params:
     latent_dim: 20
 
+# =========================
+# Trainer
+# =========================
+trainer_name: vae
 # =========================
 # Data
 # =========================

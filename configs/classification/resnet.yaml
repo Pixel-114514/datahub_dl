@@ -6,7 +6,10 @@ device: cuda   # cuda / cpu
 save_dir: ./checkpoints               # 可选，默认 ./checkpoints
 save_interval: 5                      # 每多少个 epoch 保存一次 last.pth
 exp_name: resnet             # 可选，留空会自动生成时间戳+模型名
-
+# =========================
+# Trainer
+# =========================
+trainer_name: base
 train:
   epochs: 10
   lr: 0.001

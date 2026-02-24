@@ -1,0 +1,51 @@
+seed: 42
+device: cuda   # 如果没有 GPU，框架会自动切换到 cpu
+
+save_dir: ./checkpoints
+save_interval: 10
+exp_name: ddpm_mnist_v1   # 实验名称
+
+# =========================
+# Training
+# =========================
+train:
+  epochs: 1         # 扩散模型训练收敛较慢，建议 epoch 设大一点
+  lr: 0.0002          # 扩散模型常用学习率为 2e-4 或 5e-4
+  batch_size: 128
+
+# =========================
+# Model (UNet)
+# =========================
+model:
+  name: ddpm         # 对应 MODEL_REGISTRY 中的 key
+  params:
+    in_channels: 1    # MNIST 是单通道
+    out_channels: 1
+    model_channels: 96
+    num_res_blocks: 2
+    attention_resolutions: [7, 14] # 在 7x7 和 14x14 尺寸处使用 Attention
+    channel_mult: [1, 2, 2]        # 下采样倍率控制
+    dropout: 0.1
+    num_heads: 4
+
+# =========================
+# Diffusion Specific
+# =========================
+# 这部分参数会被 DiffusionTrainer 提取并传给 GaussianDiffusion 类
+diffusion:
+  timesteps: 500      # 扩散步数 (T)
+  schedule: linear    # 噪声分布策略: linear 或 cosine
+
+# =========================
+# Trainer
+# =========================
+trainer_name: ddpm # 告诉框架调用 DiffusionTrainer
+
+# =========================
+# Data
+# =========================
+data:
+  dataset: mnist
+  root: ./data
+  image_size: 28
+  channels: 1
