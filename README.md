@@ -39,10 +39,10 @@ simple_dl_project/
 │       └── vae.yaml           # VAE模型配置
 │
 ├── data/                       # 数据加载相关
-│   ├── dataloader.py          # 数据加载器
-│   └── MNIST/                 # MNIST数据集存储位置（自动下载）
+│   └── dataloader.py          # 数据加载器
 │
 ├── models/                     # 模型定义
+│   ├── __init__.py            # 模型注册表
 │   ├── cnn.py                 # CNN模型实现
 │   ├── resnet.py              # ResNet模型实现
 │   ├── vae.py                 # VAE模型实现
@@ -51,6 +51,7 @@ simple_dl_project/
 │       └── diffusion.py       # 扩散过程实现
 │
 ├── trainer/                    # 训练器逻辑
+│   ├── __init__.py            # 训练器注册表
 │   ├── base.py                # 基础训练器类
 │   ├── vae.py                 # VAE训练器类
 │   └── diffusion.py           # DDPM训练器类
@@ -68,6 +69,8 @@ simple_dl_project/
 ├── inference_vae.py            # VAE推理演示
 ├── vae.ipynb                   # VAE原理讲解notebook
 ├── ddpm_mnist.ipynb            # DDPM原理讲解notebook
+├── ddpm_mnist.py               # DDPM训练脚本
+├── sr.ipynb                    # 超分辨率模型演示notebook
 ├── demo.ipynb                  # 演示notebook
 ├── requirements.txt            # 依赖列表
 └── README.md
@@ -373,3 +376,9 @@ python main.py --config configs/generate/ddpm.yaml
 ```
 
 这将训练一个在MNIST数据集上的DDPM模型。
+
+## 学习资源
+- vae.ipynb : VAE原理详解及实现
+- ddpm_mnist.ipynb : DDPM原理详解及实现
+- sr.ipynb : 超分辨率模型实现与应用
+- demo.ipynb : 项目功能演示
