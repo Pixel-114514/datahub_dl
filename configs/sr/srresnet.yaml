@@ -1,0 +1,33 @@
+seed: 42
+
+device: cuda
+
+save_dir: ./checkpoints
+save_interval: 5
+exp_name: sr_baseline_mnist
+
+train:
+  epochs: 10
+  lr: 0.0005
+  batch_size: 128
+
+trainer_name: sr
+
+model:
+  name: sr_resnet
+  params:
+    in_channels: 1
+    out_channels: 1
+    hidden_channels: 64
+    num_blocks: 6
+
+data:
+  task: super_resolution
+  dataset: mnist
+  root: ./data
+  image_size: 28
+  scale_factor: 2
+  downsample_mode: bicubic
+  upsample_mode: bicubic
+  noise_std: 0.0
+  value_range: zero_one

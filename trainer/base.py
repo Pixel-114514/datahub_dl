@@ -48,13 +48,21 @@ class BaseTrainer:
     # =====================
 
     def _build_device(self):
-        print(f"Using device: {self.cfg.get('device', 'cpu')}")
+        requested_device = self.cfg.get("device", "cpu")
+        print(f"Using device: {requested_device}")
         print(f"CUDA available: {torch.cuda.is_available()}")
 
-        return torch.device(
-            "cuda" if self.cfg.get("device") == "cuda" and torch.cuda.is_available()
-            else "cpu"
-        )
+        if requested_device == "cuda" and torch.cuda.is_available():
+            return torch.device("cuda")
+
+        if (
+            requested_device == "mps"
+            and hasattr(torch.backends, "mps")
+            and torch.backends.mps.is_available()
+        ):
+            return torch.device("mps")
+
+        return torch.device("cpu")
 
     def _build_model(self):
         model_cfg = self.cfg["model"]

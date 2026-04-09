@@ -27,6 +27,7 @@ model:
     channel_mult: [1, 2, 2]        # 下采样倍率控制
     dropout: 0.1
     num_heads: 4
+    image_size: 28
 
 # =========================
 # Diffusion Specific
@@ -45,7 +46,9 @@ trainer_name: ddpm # 告诉框架调用 DiffusionTrainer
 # Data
 # =========================
 data:
+  task: generation
   dataset: mnist
   root: ./data
   image_size: 28
   channels: 1
+  value_range: minus_one_one

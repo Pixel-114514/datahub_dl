@@ -2,6 +2,7 @@ import argparse
 import yaml
 import torch
 from data.dataloader import get_dataloader
+from utils.seed import set_seed
 
 # 注意：这里我们直接导入 registry 字典，而不是具体的 Trainer 类
 from trainer import TRAINER_REGISTRY
@@ -11,8 +12,8 @@ def parse_args():
     parser.add_argument(
         "--config", 
         type=str, 
-        default="configs/resnet.yaml",
-        help="Path to the YAML config file (default: configs/resnet.yaml)"
+        default="configs/classification/cnn.yaml",
+        help="Path to the YAML config file"
     )
     parser.add_argument(
         "--device",
@@ -43,6 +44,10 @@ def main():
     # 可选：命令行参数覆盖 config 中的值
     if args.device:
         config["device"] = args.device
+
+    if "seed" in config:
+        set_seed(config["seed"])
+        print(f"Using seed: {config['seed']}")
 
     # 数据加载器
     train_loader, test_loader = get_dataloader(config)

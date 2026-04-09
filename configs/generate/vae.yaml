@@ -31,7 +31,9 @@ trainer_name: vae
 # Data
 # =========================
 data:
+  task: generation
   dataset: mnist         # 你可以在 dataloader 里判断
   root: ./data
   image_size: 28
   channels: 1
+  value_range: zero_one

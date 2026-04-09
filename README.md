@@ -1,388 +1,192 @@
-# Diffusion-based SR Project（教学示例）
+# Simple Diffusion SR Project
 
-这是一个用于**扩散超分模型**的示例项目，目标不是讲复杂原理，而是帮助你快速掌握：
+这是一个面向培训的 PyTorch 教学项目，目标是用尽量清晰的工程结构，把以下几条主线串起来：
 
-- ✅ 如何搭建深度学习项目结构  
-- ✅ 如何运行一个完整的训练流程  
-- ✅ 如何在不乱改代码的前提下完成实验  
-- ✅ 完成基于扩散模型的超分辨率模型学习
+- CNN / ResNet 分类训练
+- VAE 生成建模
+- DDPM 基础扩散
+- 超分辨率基线训练
+- ResShift 风格的扩散式超分教学实现
 
-本项目基于 **PyTorch**，采用**模块化工程结构**，适合作为：
-- 新人入门练习
-- 课程教学示例
-- 项目模板起点
+当前仓库里的 `ResShift` 是教学版实现，重点是帮助学员理解“残差迁移 + 少步数采样”的核心思路，不是官方仓库的完整复现。
 
----
-
-## 教学大纲:
-
-### 扩散超分模型实战培训大纲
-
-| 阶段 | 课程序号 | 课程主题 | 核心内容 | 实战目标 | 建议周期（周） |
-| :--- | :---: | :--- | :--- | :--- | :---: |
-| **一、工程基础** | 第1课 | **深度学习项目入门** | 项目结构设计、PyTorch基础、DataLoader使用 | 搭建模块化的手写数字识别项目，告别脚本化编程 | **1 周** |
-| **二、生成基础** | 第2课 | **初识生成模型 VAE** | 自编码器原理、隐变量、重参数化技巧 | 动手实现VAE，完成图像生成与隐空间插值实验 | **2 周** |
-| **三、扩散核心** | 第3课 | **DDPM 原理精讲** | 前向扩散（加噪）、反向去噪原理、噪声预测 | 实现扩散过程数学公式，从零构建DDPM训练框架 | **2 周** |
-|  | 第4课 | **DDPM 代码实战** | U-Net网络架构、时间步编码、采样算法 | 训练DDPM模型，实现从纯噪声生成图像 | **2 周** |
-| **四、超分实战** | 第5课 | **初识超分模型** | 超分定义，扩散超分模型 SR3 | 构建超分数据集，实现CNN超分基线模型，读懂SR3论文与代码 | **1 周** |
-| **五、前沿进阶** | 第6课 | **ResShift 高效超分** | 残差预测思想、加速推理机制 | 解析 ResShift 源码 | **2 周** |
-## 一、项目结构说明
-
-```text
-simple_dl_project/
-├── configs/                    # 配置文件（⭐新人最常修改）
-│   ├── classification/         # 分类模型配置
-│   │   ├── cnn.yaml           # CNN模型配置
-│   │   └── resnet.yaml        # ResNet模型配置
-│   └── generate/              # 生成模型配置
-│       ├── ddpm.yaml          # DDPM模型配置
-│       └── vae.yaml           # VAE模型配置
-│
-├── data/                       # 数据加载相关
-│   └── dataloader.py          # 数据加载器
-│
-├── models/                     # 模型定义
-│   ├── __init__.py            # 模型注册表
-│   ├── cnn.py                 # CNN模型实现
-│   ├── resnet.py              # ResNet模型实现
-│   ├── vae.py                 # VAE模型实现
-│   └── ddpm/                  # 扩散模型相关
-│       ├── unet.py            # UNet架构实现
-│       └── diffusion.py       # 扩散过程实现
-│
-├── trainer/                    # 训练器逻辑
-│   ├── __init__.py            # 训练器注册表
-│   ├── base.py                # 基础训练器类
-│   ├── vae.py                 # VAE训练器类
-│   └── diffusion.py           # DDPM训练器类
-│
-├── utils/                      # 工具函数
-│   ├── logger.py              # 日志记录工具
-│   └── seed.py                # 随机种子设置
-│
-├── checkpoints/                # 模型检查点保存目录
-│   ├── cnn/
-│   ├── resnet/
-│   ├── vae_mnist/
-│   └── ddpm_mnist/
-├── main.py                     # ⭐ 程序入口（直接运行）
-├── inference_vae.py            # VAE推理演示
-├── vae.ipynb                   # VAE原理讲解notebook
-├── ddpm_mnist.ipynb            # DDPM原理讲解notebook
-├── ddpm_mnist.py               # DDPM训练脚本
-├── sr.ipynb                    # 超分辨率模型演示notebook
-├── demo.ipynb                  # 演示notebook
-├── requirements.txt            # 依赖列表
-└── README.md
-```
-
-### 📌 修改原则（非常重要）
-
-| 文件 / 目录                   | 是否允许修改    |
-| ----------------------------- | -------------- |
-| `configs/*.yaml`              | ✅ 经常修改     |
-| `models/`                     | ⚠️ 进阶后修改   |
-| `trainer/`                    | ❌ 初学阶段不要改|
-| `main.py`                     | ❌ 不要随意改   |
-
-
----
-
-## 二、环境准备
-
-### 1️⃣ 创建 Conda 环境（推荐）
-
-```bash
-conda create -n simple-dl python=3.9 -y
-conda activate simple-dl
-```
-
-### 2️⃣ 安装依赖
-
-```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-pip install pyyaml
-```
-
-依赖列表 (`requirements.txt`)：
-- torch
-- torchvision
-- pyyaml
-
-> 如果你有 GPU 且安装了 CUDA，请确保 PyTorch 支持 CUDA：
-
-```bash
-python -c "import torch; print(torch.cuda.is_available())"
-```
-
----
-
-## 三、如何运行项目
-
-在项目根目录下执行：
+## 当前支持的训练入口
 
 ```bash
 python main.py --config configs/classification/cnn.yaml
-```
-
-或运行VAE模型：
-
-```bash
+python main.py --config configs/classification/resnet.yaml
 python main.py --config configs/generate/vae.yaml
+python main.py --config configs/generate/ddpm.yaml
+python main.py --config configs/sr/srresnet.yaml
+python main.py --config configs/sr/resshift.yaml
 ```
 
-或运行DDPM模型：
+如果没有可用 GPU，可以直接加：
 
 ```bash
-python main.py --config configs/generate/ddpm.yaml
+python main.py --config configs/sr/resshift.yaml --device cpu
 ```
 
-正常情况下你将看到类似输出：
+## 项目结构
 
 ```text
-PyTorch 版本: 2.x.x
-CUDA 是否可用: True
-CUDA 版本 (torch 编译时用的): 11.8
-当前 GPU 名称: GeForce RTX xx
-Epoch [1] | Train Loss: 0.35 | Val Acc: 0.90
-Epoch [2] | Train Loss: 0.21 | Val Acc: 0.94
-...
+simple_dl_project/
+├── configs/
+│   ├── classification/
+│   ├── generate/
+│   └── sr/
+├── data/
+│   └── dataloader.py
+├── docs/
+│   └── resshift.md
+├── models/
+│   ├── ddpm/
+│   ├── cnn.py
+│   ├── resnet.py
+│   ├── sr.py
+│   ├── resshift.py
+│   └── vae.py
+├── trainer/
+│   ├── base.py
+│   ├── diffusion.py
+│   ├── sr.py
+│   ├── resshift.py
+│   └── vae.py
+├── utils/
+│   ├── logger.py
+│   ├── metrics.py
+│   └── seed.py
+├── demo.ipynb
+├── ddpm_mnist.ipynb
+├── inference_vae.py
+├── main.py
+├── sr.ipynb
+└── vae.ipynb
 ```
 
-这说明：
+## 这次完善了什么
 
-* 数据加载成功
-* 模型正常训练
-* 验证流程正常
+- 修正了训练入口默认配置路径，并补上随机种子设置
+- 扩展了 `data/dataloader.py`，支持分类、生成和超分任务
+- 增加了 `ResNet` 注册，修复了 README 说支持但代码未注册的问题
+- 给 DDPM 加上了 `cosine schedule` 和更合理的 Attention 分辨率判断
+- 增加了超分基线 `SimpleSRResNet`
+- 增加了教学版 `ResShiftUNet + ResidualShiftScheduler`
+- 增加了 PSNR 评估与超分可视化保存
+- 增加了 `configs/sr/` 配置和 `docs/resshift.md` 学习材料
 
----
+## 超分任务现在怎么跑
 
-## 四、配置文件说明
+超分训练不再直接复用分类标签，而是走一条单独的数据流：
 
-项目包含四种模型的配置文件：
-- `configs/classification/cnn.yaml` - 适用于CNN模型的配置
-- `configs/classification/resnet.yaml` - 适用于ResNet模型的配置
-- `configs/generate/vae.yaml` - 适用于VAE模型的配置
-- `configs/generate/ddpm.yaml` - 适用于DDPM模型的配置
+1. 从 `MNIST / FashionMNIST / CIFAR10` 读取高分辨率图像
+2. 通过下采样构造低分辨率图像
+3. 再把低分辨率图像插值回原尺寸
+4. 返回 `(lr_up, hr)` 这一对样本给训练器
+
+这样做的好处是，学员不需要先准备 DIV2K 这类大数据集，就能把超分训练流程完整跑通。
+
+如果想加速实验，可以在配置里加：
 
 ```yaml
-# configs/generate/ddpm.yaml 示例
-seed: 42                         # 随机种子
+data:
+  max_train_samples: 1024
+  max_val_samples: 256
+```
 
-device: cuda                     # cuda / cpu
+## 两条超分主线
 
-save_dir: ./checkpoints          # 模型保存目录
-save_interval: 10                # 每多少个 epoch 保存一次 last.pth
-exp_name: ddpm_mnist_v1          # 实验名称
+### 1. 超分基线 `configs/sr/srresnet.yaml`
 
+- 模型文件：`models/sr.py`
+- 训练器：`trainer/sr.py`
+- 思路：输入双三次插值后的低清图，直接预测高频残差
+- 适合教学阶段：先理解超分任务、PSNR 和残差学习
+
+### 2. ResShift 教学版 `configs/sr/resshift.yaml`
+
+- 模型文件：`models/resshift.py`
+- 训练器：`trainer/resshift.py`
+- 思路：把高分图和低分条件图之间的残差拆进一个少步数的“shift”过程
+- 训练目标：随机采样时间步，预测 `HR - LR_up` 残差
+- 推理过程：从低清条件图加噪开始，逐步恢复残差并重建高分图
+
+这版实现保留了 ResShift 最适合培训讲解的几个关键词：
+
+- 条件输入不是纯噪声，而是退化后的低质图像
+- 关注的是“残差迁移”而不是无条件生成
+- 推理步数明显比传统 DDPM 更短
+
+但它没有追求官方仓库级别的真实图像恢复效果，训练数据、退化方式、网络规模都做了教学化简化。
+
+## 输出内容
+
+- 分类任务：保存 `last.pth / best.pth`
+- VAE / DDPM：保存权重与生成样例
+- SR / ResShift：额外保存 `sr_epoch_x.png`
+
+`sr_epoch_x.png` 的三行含义分别是：
+
+- 第一行：低清输入
+- 第二行：模型输出
+- 第三行：高分真值
+
+## 配置约定
+
+常用字段如下：
+
+```yaml
 train:
-  epochs: 1                      # 扩散模型训练收敛较慢，建议 epoch 设大一点
-  lr: 0.0002                     # 扩散模型常用学习率为 2e-4 或 5e-4
+  epochs: 10
+  lr: 0.0002
   batch_size: 128
 
 model:
-  name: ddpm                     # 模型名称，对应 MODEL_REGISTRY 中的 key
+  name: resshift
   params:
-    in_channels: 1               # 输入通道数
-    out_channels: 1              # 输出通道数
-    model_channels: 96           # 模型基础通道数
-    num_res_blocks: 2            # 每个分辨率下残差块的数量
-    attention_resolutions: [7, 14] # 在 7x7 和 14x14 尺寸处使用 Attention
-    channel_mult: [1, 2, 2]      # 下采样倍率控制
-    dropout: 0.1                 # Dropout概率
-    num_heads: 4                 # 注意力头数
+    model_channels: 64
 
-diffusion:
-  timesteps: 500                 # 扩散步数 (T)
-  schedule: linear               # 噪声分布策略: linear 或 cosine
-
-trainer_name: ddpm               # 训练器名称，对应 TRAINER_REGISTRY 中的 key
+trainer_name: resshift
 
 data:
-  dataset: mnist                 # 数据集类型
-  root: ./data                   # 数据集存储路径
-  image_size: 28                 # 图像尺寸
-  channels: 1                    # 图像通道数
+  task: super_resolution
+  dataset: mnist
+  root: ./data
+  image_size: 28
+  scale_factor: 2
+  value_range: zero_one
 ```
 
-注意：配置文件中新增了 `trainer_name` 字段，用于指定使用的训练器类型。
+`data.value_range` 目前支持：
 
----
+- `zero_one`
+- `minus_one_one`
 
-## 五、支持的模型
+## 推荐学习顺序
 
-本项目提供了四种模型实现：
+1. 先跑 `cnn.yaml` 和 `resnet.yaml`，理解通用训练入口
+2. 再跑 `vae.yaml`，理解生成模型和 trainer 定制
+3. 再跑 `ddpm.yaml`，理解时间步、噪声调度和采样
+4. 然后跑 `srresnet.yaml`，建立超分任务直觉
+5. 最后跑 `resshift.yaml`，理解条件扩散超分和残差迁移
 
-### 1. SimpleCNN (`models/cnn.py`)
-- 一个简单但效果不错的CNN，适合MNIST手写数字分类
-- 参数少、训练快、测试准确率轻松99%+
-- 包含BatchNorm、多种激活函数选项(gelu/relu/silu)等现代设计
+## ResShift 资料
 
-### 2. ResNet (`models/resnet.py`)
-- 实现了基本的ResNet架构，包含残差块
-- 适合学习残差网络的设计思想
-- 包含shortcut连接以解决梯度消失问题
+- 仓库内讲义：`docs/resshift.md`
+- ResShift 论文：<https://arxiv.org/abs/2307.12348>
+- ResShift 官方仓库：<https://github.com/zsyOAOA/ResShift>
+- SR3 论文：<https://arxiv.org/abs/2104.07636>
 
-### 3. VAE (`models/vae.py`)
-- 实现了卷积变分自编码器(Convolutional Variational Autoencoder)
-- 用于学习数据分布并生成新样本
-- 包含编码器(Encoder)、解码器(Decoder)和重参数化技巧(Reparameterization Trick)
-- 通过最小化重构损失和KL散度来训练
-
-### 4. DDPM (`models/ddpm/unet.py` 和 `models/ddpm/diffusion.py`)
-- 实现了去噪扩散概率模型(Denoising Diffusion Probabilistic Models)
-- 一种先进的生成模型，通过逐步去噪过程生成高质量图像
-- 包含UNet架构和扩散过程的完整实现
-- 通过预测噪声或预测原图等方式进行训练
-
-可以通过修改配置文件中的`model.name`字段来切换模型。
-
----
-
-## 六、训练器功能
-
-项目采用了**注册机制**，可以根据配置文件中的`trainer_name`字段动态选择训练器：
-
-BaseTrainer类(`trainer/base.py`)提供以下功能：
-- 自动检测设备(CPU/GPU)
-- 模型训练和验证
-- 检查点保存(包括最佳模型和最新模型)
-- 日志记录
-- 实验配置保存
-
-VAETrainer类(`trainer/vae.py`)专门针对VAE模型的特点进行了定制：
-- 实现了VAE特有的损失函数(重构损失+KL散度)
-- 提供了专门的训练和验证方法
-- 支持重构和生成任务
-
-DiffusionTrainer类(`trainer/diffusion.py`)为扩散模型专门设计：
-- 实现了扩散过程的前向和反向传播
-- 包含噪声调度和损失计算
-- 支持不同的噪声计划(Linear/Cosine)
-- 提供采样和生成功能
-
-所有训练器都注册到了`TRAINER_REGISTRY`中，可以通过配置文件中的`trainer_name`字段来选择使用哪个训练器。
-
-训练过程中会自动保存模型到checkpoints目录下的对应子目录中。
-
----
-
-## 七、数据加载
-
-项目使用MNIST数据集进行训练和测试，数据加载器会自动下载数据集到指定目录。
-
-- 训练集: 60,000张图像
-- 测试集: 10,000张图像
-- 图像尺寸: 28x28灰度图
-- 类别数: 10 (数字0-9)
-
----
-
-## 八、模型与训练器注册机制
-
-为了提高代码的可扩展性，项目引入了模型和训练器的注册机制：
-
-### 模型注册
-- 在`models/__init__.py`中定义了`MODEL_REGISTRY`
-- 所有模型类都注册到此字典中
-- 通过配置文件中的`model.name`字段来选择模型
-
-### 训练器注册
-- 在`trainer/__init__.py`中定义了`TRAINER_REGISTRY`
-- 所有训练器类都注册到此字典中
-- 通过配置文件中的`trainer_name`字段来选择训练器
-
-这种设计使得添加新模型或训练器变得非常简单，只需继承相应的基类并将其添加到注册表中即可。
-
----
-
-## 九、代码整体流程
-
-```text
-读取配置
-   ↓
-加载数据
-   ↓
-从TRAINER_REGISTRY获取训练器类
-   ↓
-从MODEL_REGISTRY获取模型类
-   ↓
-创建模型
-   ↓
-定义 loss & optimizer
-   ↓
-for epoch:
-    训练一轮
-    验证准确率
-    保存检查点(如果需要)
-```
-
-你只需要记住一句话：
-
-> **main.py 负责"调度"，其他模块负责"干活"。**
-
----
-
-## 十、作业：
-* 一、将代码跑通,自己处理报错
-
-* 二、在main.py中添加一个函数，可以将一些样本展示出来（提示：使用matplotlib.pyplot）
-
-* 二、将代码过一遍，要能够说明每个模块的作用是什么，以及一个深度学习模型的训练流程
-
-* 三、models文件夹里面有两个模型，我们训练用的是SimpleCNN，你需要观察代码，调用ResNet模型（提示：观察trainer/base.py中的模型创建部分）。相关参数在configs/resnet.yaml中。
-
-* 四、模型训练完后，会在checkpoints目录下保存模型训练文件（包括模型参数、优化器状态、训练配置等）。你需要写一个函数，调用模型推理（inference），输入一张图片，输出模型的预测结果。
-
-* 五、**VAE**：阅读 vae.ipynb 中索引的文章，或自行查找相关资料学习（[VAE 参考文章](https://blog.csdn.net/m0_56942491/article/details/136265500)），整理成笔记发送至我的邮箱。同时阅读 model 代码，理解我是如何实现 VAE 模型可替换结构的。
-
-* 六、**DDPM:**：阅读ddpm_mnist.ipynb里面的代码，回答理论、代码相关问题.整理成笔记，发送至我的邮箱，以及查看model代码，了解我是如何实现ddpm的模型替换的。
-
-* 七、**超分辨率模型 SR3**：阅读 sr.ipynb 中索引的文章，或自行查找相关资料学习（[SR3 参考文章](https://arxiv.org/abs/2104.07636)），整理成笔记发送至我的邮箱。同时阅读 model 代码，理解我是如何实现 SR3 模型的。
-
-
-
-
-通过这些练习，你将逐步熟悉深度学习项目的各个组成部分及其相互关系。
-
----
-
-## 十一、VAE推理演示
-
-项目还包含了VAE推理演示脚本`inference_vae.py`，可以用来：
-- 加载训练好的VAE模型
-- 对测试图像进行重构
-- 从潜在空间随机生成新样本
-
-运行以下命令执行推理：
+## 依赖
 
 ```bash
-python inference_vae.py
+pip install -r requirements.txt
 ```
 
-这将在`inference_results`目录下生成重构图像和生成样本的图片。
+当前 `requirements.txt` 包含：
 
----
-
-## 十二、DDPM模型
-
-项目新增了DDPM（Denoising Diffusion Probabilistic Models）模型的支持：
-- DDPM是一种强大的生成模型，能够生成高质量的图像
-- 通过逐步添加噪声再逐步去噪的过程来学习数据分布
-- 在`models/ddpm/`目录下包含了UNet架构和扩散过程的完整实现
-- 在`trainer/diffusion.py`中实现了专门的训练器
-- 在`ddpm_mnist.ipynb`中提供了详细的原理讲解和示例
-
-要运行DDPM模型，可以使用：
-
-```bash
-python main.py --config configs/generate/ddpm.yaml
-```
-
-这将训练一个在MNIST数据集上的DDPM模型。
-
-## 学习资源
-- vae.ipynb : VAE原理详解及实现
-- ddpm_mnist.ipynb : DDPM原理详解及实现
-- sr.ipynb : 超分辨率模型实现与应用
-- demo.ipynb : 项目功能演示
+- `torch`
+- `torchvision`
+- `pyyaml`
+- `numpy`
+- `matplotlib`

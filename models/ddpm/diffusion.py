@@ -1,12 +1,28 @@
+import math
 import torch
 import torch.nn.functional as F
-import numpy as np
+
+
+def cosine_beta_schedule(timesteps, s=0.008):
+    steps = timesteps + 1
+    x = torch.linspace(0, timesteps, steps, dtype=torch.float64)
+    alphas_cumprod = torch.cos(((x / timesteps) + s) / (1 + s) * math.pi * 0.5) ** 2
+    alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+    betas = 1.0 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+    return betas.clamp(0.0001, 0.9999)
 
 class GaussianDiffusion:
     def __init__(self, timesteps=1000, beta_schedule='linear'):
         self.timesteps = timesteps
         if beta_schedule == 'linear':
             betas = torch.linspace(0.0001, 0.02, timesteps, dtype=torch.float64)
+        elif beta_schedule == 'cosine':
+            betas = cosine_beta_schedule(timesteps)
+        else:
+            raise ValueError(
+                f"Unsupported beta schedule '{beta_schedule}'. "
+                "Use 'linear' or 'cosine'."
+            )
         self.betas = betas
         self.alphas = 1. - betas
         self.alphas_cumprod = torch.cumprod(self.alphas, axis=0)

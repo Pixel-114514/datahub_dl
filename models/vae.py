@@ -5,10 +5,6 @@ class ConvVAE(nn.Module):
     def __init__(self, latent_dim=20):
         super().__init__()
 
-class ConvVAE(nn.Module):
-    def __init__(self, latent_dim=20):
-        super().__init__()
-
         # ===== 更强的 Encoder =====
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 32, 4, 2, 1),   # 14x14

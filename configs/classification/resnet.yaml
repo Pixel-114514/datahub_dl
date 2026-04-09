@@ -20,4 +20,8 @@ model:
   params:
     num_classes: 10
 data:
+  task: classification
+  dataset: mnist
   root: ./data
+  image_size: 28
+  value_range: zero_one

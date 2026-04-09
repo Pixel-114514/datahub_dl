@@ -31,7 +31,19 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
         return x
 
 def norm_layer(channels):
-    return nn.GroupNorm(32, channels)
+    groups = min(32, channels)
+    while channels % groups != 0:
+        groups -= 1
+    return nn.GroupNorm(groups, channels)
+
+
+def use_attention(ds, attention_resolutions, image_size):
+    if ds in attention_resolutions:
+        return True
+    if image_size is None:
+        return False
+    current_resolution = image_size // ds
+    return current_resolution in attention_resolutions
 
 # --- 核心模块 ---
 class ResidualBlock(TimestepBlock):
@@ -63,6 +75,7 @@ class ResidualBlock(TimestepBlock):
 class AttentionBlock(nn.Module):
     def __init__(self, channels, num_heads=4):
         super().__init__()
+        assert channels % num_heads == 0, "channels must be divisible by num_heads"
         self.num_heads = num_heads
         self.norm = norm_layer(channels)
         self.qkv = nn.Conv2d(channels, channels * 3, kernel_size=1, bias=False)
@@ -95,9 +108,11 @@ class Downsample(nn.Module):
 class UNetModel(nn.Module):
     def __init__(self, in_channels=1, model_channels=96, out_channels=1, 
                  num_res_blocks=2, attention_resolutions=(8,), 
-                 dropout=0, channel_mult=(1, 2, 2), num_heads=4):
+                 dropout=0, channel_mult=(1, 2, 2), num_heads=4,
+                 image_size=None):
         super().__init__()
         self.model_channels = model_channels
+        self.image_size = image_size
         time_embed_dim = model_channels * 4
         self.time_embed = nn.Sequential(
             nn.Linear(model_channels, time_embed_dim),
@@ -113,7 +128,7 @@ class UNetModel(nn.Module):
             for _ in range(num_res_blocks):
                 layers = [ResidualBlock(ch, mult * model_channels, time_embed_dim, dropout)]
                 ch = mult * model_channels
-                if ds in attention_resolutions:
+                if use_attention(ds, attention_resolutions, image_size):
                     layers.append(AttentionBlock(ch, num_heads=num_heads))
                 self.down_blocks.append(TimestepEmbedSequential(*layers))
                 down_block_chans.append(ch)
@@ -133,7 +148,7 @@ class UNetModel(nn.Module):
             for i in range(num_res_blocks + 1):
                 layers = [ResidualBlock(ch + down_block_chans.pop(), model_channels * mult, time_embed_dim, dropout)]
                 ch = model_channels * mult
-                if ds in attention_resolutions:
+                if use_attention(ds, attention_resolutions, image_size):
                     layers.append(AttentionBlock(ch, num_heads=num_heads))
                 if level and i == num_res_blocks:
                     layers.append(Upsample(ch))
