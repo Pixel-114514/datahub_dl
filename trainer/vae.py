@@ -5,6 +5,14 @@ from .base import BaseTrainer   # 按你实际路径修改
 
 
 class VAETrainer(BaseTrainer):
+    def _monitor_name(self):
+        return "val_loss"
+
+    def _monitor_display_name(self):
+        return "Val Loss"
+
+    def _monitor_mode(self):
+        return "min"
 
     # ======================
     # 覆盖 loss
@@ -60,35 +68,13 @@ class VAETrainer(BaseTrainer):
 
         log(
             f"Epoch [{epoch+1}] "
-            f"Loss: {avg_loss:.4f} | "
+            f"Train Loss: {avg_loss:.4f} | "
             f"Recon: {avg_recon:.4f} | "
             f"KL: {avg_kl:.4f}"
         )
 
         return avg_loss
 
-    def save_checkpoint(self, epoch, is_best=False):
-        checkpoint = {
-            "epoch": epoch,
-            "model_state_dict": self.model.state_dict(),
-            "optimizer_state_dict": self.optimizer.state_dict(),
-            "best_metric": self.best_metric,
-            "cfg": self.cfg,
-        }
-
-        last_path = self.exp_dir / "last.pth"
-        torch.save(checkpoint, last_path)
-
-        if is_best:
-            best_path = self.exp_dir / "best.pth"
-            torch.save(checkpoint, best_path)
-            log(
-                f"New best model saved! "
-                f"Val Loss: {self.best_metric:.4f} "
-                f"@ epoch {epoch+1}"
-            )
-
-        log(f"Checkpoint saved: {last_path}")
     # ======================
     # 验证
     # ======================
@@ -115,29 +101,3 @@ class VAETrainer(BaseTrainer):
         avg_loss = total_loss / total_samples
         log(f"Epoch [{epoch+1}] Val Loss: {avg_loss:.4f}")
         return avg_loss
-
-    # ======================
-    # 覆盖 fit (loss 越小越好)
-    # ======================
-    def fit(self):
-        epochs = self.cfg["train"]["epochs"]
-        save_interval = self.cfg.get("save_interval", 1)
-
-        self.best_metric = float("inf")
-
-        for epoch in range(self.start_epoch, epochs):
-            train_loss = self.train_one_epoch(epoch)
-            val_metric = self.evaluate(epoch)
-
-            if val_metric is not None and val_metric < self.best_metric:
-                self.best_metric = val_metric
-                self.best_epoch = epoch
-                self.save_checkpoint(epoch, is_best=True)
-            elif (epoch + 1) % save_interval == 0:
-                self.save_checkpoint(epoch, is_best=False)
-
-        log(
-            f"Training finished. "
-            f"Best Val Loss: {self.best_metric:.4f} "
-            f"@ epoch {self.best_epoch+1}"
-        )

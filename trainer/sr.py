@@ -8,6 +8,18 @@ from utils.metrics import calculate_psnr
 
 
 class BaseSRTrainer(BaseTrainer):
+    def _monitor_name(self):
+        return "val_psnr"
+
+    def _monitor_display_name(self):
+        return "Val PSNR"
+
+    def _monitor_mode(self):
+        return "max"
+
+    def _monitor_unit(self):
+        return "dB"
+
     def _clamp_range(self):
         value_range = self.cfg.get("data", {}).get("value_range", "zero_one")
         if value_range == "minus_one_one":
@@ -27,25 +39,6 @@ class BaseSRTrainer(BaseTrainer):
             save_kwargs["value_range"] = (-1.0, 1.0)
         save_image(images, sample_path, **save_kwargs)
         log(f"Saved super-resolution samples to {sample_path}")
-
-    def save_checkpoint(self, epoch, is_best=False):
-        checkpoint = {
-            "epoch": epoch,
-            "model_state_dict": self.model.state_dict(),
-            "optimizer_state_dict": self.optimizer.state_dict(),
-            "best_psnr": self.best_metric,
-            "cfg": self.cfg,
-        }
-
-        last_path = self.exp_dir / "last.pth"
-        torch.save(checkpoint, last_path)
-
-        if is_best:
-            best_path = self.exp_dir / "best.pth"
-            torch.save(checkpoint, best_path)
-            log(f"New best model saved! PSNR: {self.best_metric:.4f} dB @ epoch {epoch+1}")
-
-        log(f"Checkpoint saved: {last_path}")
 
     def infer(self, lr):
         raise NotImplementedError
@@ -80,28 +73,6 @@ class BaseSRTrainer(BaseTrainer):
             self._save_visuals(*preview, epoch)
 
         return avg_psnr
-
-    def fit(self):
-        epochs = self.cfg["train"]["epochs"]
-        save_interval = self.cfg.get("save_interval", 1)
-        self.best_metric = float("-inf")
-
-        for epoch in range(self.start_epoch, epochs):
-            self.train_one_epoch(epoch)
-            val_metric = self.evaluate(epoch)
-
-            if val_metric is not None and val_metric > self.best_metric:
-                self.best_metric = val_metric
-                self.best_epoch = epoch
-                self.save_checkpoint(epoch, is_best=True)
-            elif (epoch + 1) % save_interval == 0:
-                self.save_checkpoint(epoch, is_best=False)
-
-        log(
-            f"Training finished. Best Val PSNR: {self.best_metric:.4f} dB "
-            f"@ epoch {self.best_epoch+1}"
-        )
-        log(f"Experiment directory: {self.exp_dir}")
 
 
 class SuperResolutionTrainer(BaseSRTrainer):

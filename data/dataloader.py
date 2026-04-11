@@ -1,7 +1,9 @@
 import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset, Subset
-from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, Subset
+from torchvision import datasets
+
+from data.sr_dataset import SyntheticSuperResolutionDataset
+from data.transforms import build_transform
 
 
 DATASET_REGISTRY = {
@@ -10,68 +12,6 @@ DATASET_REGISTRY = {
     "fashionmnist": datasets.FashionMNIST,
     "cifar10": datasets.CIFAR10,
 }
-
-
-class SyntheticSuperResolutionDataset(Dataset):
-    def __init__(
-        self,
-        base_dataset,
-        scale_factor=2,
-        downsample_mode="bicubic",
-        upsample_mode="bicubic",
-        noise_std=0.0,
-        value_range="zero_one",
-    ):
-        self.base_dataset = base_dataset
-        self.scale_factor = scale_factor
-        self.downsample_mode = downsample_mode
-        self.upsample_mode = upsample_mode
-        self.noise_std = noise_std
-        self.value_range = value_range
-
-    def __len__(self):
-        return len(self.base_dataset)
-
-    def _clamp(self, image):
-        if self.value_range == "minus_one_one":
-            return image.clamp(-1.0, 1.0)
-        return image.clamp(0.0, 1.0)
-
-    def _resize(self, image, size, mode):
-        kwargs = {}
-        if mode in {"bilinear", "bicubic"}:
-            kwargs["align_corners"] = False
-        return F.interpolate(image, size=size, mode=mode, **kwargs)
-
-    def __getitem__(self, index):
-        hr, _ = self.base_dataset[index]
-        hr = self._clamp(hr)
-        hr_size = hr.shape[-2:]
-        lr_size = tuple(max(1, dim // self.scale_factor) for dim in hr_size)
-
-        lr = self._resize(hr.unsqueeze(0), lr_size, self.downsample_mode).squeeze(0)
-        if self.noise_std > 0:
-            lr = lr + torch.randn_like(lr) * self.noise_std
-        lr = self._clamp(lr)
-
-        lr_up = self._resize(lr.unsqueeze(0), hr_size, self.upsample_mode).squeeze(0)
-        lr_up = self._clamp(lr_up)
-        return lr_up, hr
-
-
-def _build_transform(data_cfg):
-    transform_steps = []
-    image_size = data_cfg.get("image_size")
-    if image_size:
-        transform_steps.append(transforms.Resize((image_size, image_size)))
-    transform_steps.append(transforms.ToTensor())
-
-    value_range = data_cfg.get("value_range", "zero_one")
-    if value_range == "minus_one_one":
-        transform_steps.append(transforms.Lambda(lambda x: x * 2.0 - 1.0))
-
-    return transforms.Compose(transform_steps)
-
 
 def _build_dataset(dataset_name, root, train, transform, download):
     dataset_key = dataset_name.lower()
@@ -107,7 +47,7 @@ def get_dataloader(config):
     data_cfg = config.get("data", {})
     train_cfg = config.get("train", {})
     task = data_cfg.get("task", _infer_task(config))
-    transform = _build_transform(data_cfg)
+    transform = build_transform(data_cfg)
 
     root = data_cfg.get("root", "./data")
     dataset_name = data_cfg.get("dataset", "mnist")

@@ -47,17 +47,34 @@ class GaussianDiffusion:
         return (self._extract(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start +
                 self._extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise)
 
+    def predict_x_start_from_noise(self, x_t, t, pred_noise):
+        return (
+            self._extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t -
+            self._extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * pred_noise
+        )
+
     @torch.no_grad()
-    def p_sample(self, model, x_t, t):
-        pred_noise = model(x_t, t)
-        x_recon = (self._extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t -
-                   self._extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * pred_noise)
-        x_recon = torch.clamp(x_recon, min=-1., max=1.)
-        
-        model_mean = (self._extract(self.posterior_mean_coef1, t, x_t.shape) * x_recon +
-                      self._extract(self.posterior_mean_coef2, t, x_t.shape) * x_t)
+    def p_sample_from_pred_noise(self, x_t, t, pred_noise, clip_denoised_range=(-1.0, 1.0)):
+        x_recon = self.predict_x_start_from_noise(x_t, t, pred_noise)
+        if clip_denoised_range is not None:
+            x_recon = x_recon.clamp(*clip_denoised_range)
+
+        model_mean = (
+            self._extract(self.posterior_mean_coef1, t, x_t.shape) * x_recon +
+            self._extract(self.posterior_mean_coef2, t, x_t.shape) * x_t
+        )
         model_log_variance = self._extract(self.posterior_log_variance_clipped, t, x_t.shape)
-        
+
         noise = torch.randn_like(x_t)
         nonzero_mask = ((t != 0).float().view(-1, *([1] * (len(x_t.shape) - 1))))
         return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise
+
+    @torch.no_grad()
+    def p_sample(self, model, x_t, t, clip_denoised_range=(-1.0, 1.0)):
+        pred_noise = model(x_t, t)
+        return self.p_sample_from_pred_noise(
+            x_t,
+            t,
+            pred_noise,
+            clip_denoised_range=clip_denoised_range,
+        )
