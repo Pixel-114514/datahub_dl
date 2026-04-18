@@ -265,6 +265,9 @@ data:
 - 学习路径：`docs/learning_path.md`
 - 项目架构讲义：`docs/architecture.md`
 - 仓库内讲义：`docs/resshift.md`
+  - 已补充 `SR3 vs ResShift` 对比
+  - 已补充从 `SR3` 改造成 `ResShift` 的实现路径
+  - 已补充练习题与论文公式复现题
 - ResShift 论文：<https://arxiv.org/abs/2307.12348>
 - ResShift 官方仓库：<https://github.com/zsyOAOA/ResShift>
 - SR3 论文：<https://arxiv.org/abs/2104.07636>
