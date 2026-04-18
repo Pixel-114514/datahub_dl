@@ -228,6 +228,19 @@ ResShift 进一步说明：
 - 怎样把“研究动机”落到工程实现上
 - 怎样比较不同方案的指标、速度和复杂度
 
+### 这一阶段建议补做的内容
+
+- 先对比 `SR3` 和 `ResShift` 的输入、输出、loss 与采样起点
+- 再从 `trainer/sr3.py` 出发，列出改造成 `trainer/resshift.py` 的最小改动
+- 最后手推 `x_t = LR_up + s_t * (HR - LR_up) + sigma_t * z` 这类 shifted 公式
+
+建议把 `docs/resshift.md` 当成这一阶段的主文档，它现在已经补上了：
+
+- `SR3 vs ResShift` 的结构化对比
+- 从 `SR3` 改到 `ResShift` 的实现路线
+- 论文核心公式的复现题
+- 一套不带答案的练习题
+
 ## 第七阶段：工程实践与扩展
 
 前六个阶段学的是“从模型到任务”。
