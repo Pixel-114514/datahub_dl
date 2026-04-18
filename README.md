@@ -20,12 +20,13 @@
 1. `docs/architecture.md`
 2. `docs/learning_path.md`
 3. `docs/generative_basics.md`
-4. `configs/classification/cnn.yaml`
-5. `main.py`
-6. `trainer/base.py`
-7. 再回头看具体任务的 `trainer` 和 `model`
+4. `docs/mit_6s184_flow_matching_notes.md`
+5. `configs/classification/cnn.yaml`
+6. `main.py`
+7. `trainer/base.py`
+8. 再回头看具体任务的 `trainer` 和 `model`
 
-`docs/architecture.md` 讲项目分层，`docs/learning_path.md` 讲整体顺序，`docs/generative_basics.md` 讲 VAE、DDPM、SR3、ResShift 这些知识点。
+`docs/architecture.md` 讲项目分层，`docs/learning_path.md` 讲整体顺序，`docs/generative_basics.md` 讲 VAE、DDPM、SR3、ResShift 这些知识点，`docs/mit_6s184_flow_matching_notes.md` 把 MIT 6.S184 课程内容映射到本仓库代码。
 
 ## 当前支持的训练入口
 
@@ -61,6 +62,7 @@ simple_dl_project/
 │   ├── architecture.md
 │   ├── learning_path.md
 │   ├── generative_basics.md
+│   ├── mit_6s184_flow_matching_notes.md
 │   └── resshift.md
 ├── models/
 │   ├── ddpm/
@@ -135,6 +137,7 @@ simple_dl_project/
 
 - `docs/learning_path.md`
 - `docs/generative_basics.md`
+- `docs/mit_6s184_flow_matching_notes.md`
 - `docs/resshift.md`
 
 这几份文档是按顺序写的，不要求先掌握完整论文公式。
