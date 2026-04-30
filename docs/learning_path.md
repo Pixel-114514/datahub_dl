@@ -14,6 +14,8 @@
 6. ResShift 少步扩散超分
 7. 工程实践与扩展练习
 
+> **关于训练时间**：每个阶段的预估训练时间已标注在"运行命令与预期输出"部分。如果想快速验证流程而不等完整训练，可以在配置文件中添加 `data.max_train_samples: 512` 和 `data.max_val_samples: 128` 来减少数据量。这不会影响对代码流程的理解，只是最终效果会差一些。
+
 ---
 
 ## 第一阶段：手写数字识别
@@ -72,6 +74,8 @@ Experiment directory: checkpoints/cnn
 ```
 
 > **提示**：首次运行会自动下载 MNIST 数据集到 `./data` 目录，约 11MB。
+
+> **预估训练时间**：CNN 在 GPU 上约 1-2 分钟，CPU 上约 3-5 分钟。
 
 ### 这一阶段对应的工程实践
 
@@ -163,6 +167,8 @@ Epoch [70] Train Loss: 142.3456 | Recon: 135.7890 | KL: 6.5566
 
 > **注意**：VAE 的 loss 是"越小越好"，和分类任务的准确率"越大越好"相反。这在 `trainer/vae.py` 中通过 `_monitor_mode: "min"` 来控制。
 
+> **预估训练时间**：VAE 70 epoch 在 GPU 上约 3-5 分钟，CPU 上约 10-15 分钟。
+
 ### 这一阶段对应的工程实践
 
 | 工程概念 | 说明 | 代码对比 |
@@ -234,6 +240,8 @@ python main.py --config configs/generate/ddpm.yaml
 ```
 
 > **重要提示**：DDPM 训练收敛较慢，默认配置只设了 1 个 epoch。建议把 `epochs` 改到 30-50 才能看到较好的生成效果。首次运行采样过程会比较慢（500 步去噪），请耐心等待。
+
+> **预估训练时间**：DDPM 1 epoch（含 500 步采样）在 GPU 上约 2-3 分钟，CPU 上约 10-20 分钟。如果要训练 30 epoch 看到 decent 的效果，GPU 约需 1 小时。
 
 预期输出：
 
@@ -331,6 +339,8 @@ Saved super-resolution samples to checkpoints/sr_baseline_mnist/sr_epoch_10.png
 
 > **提示**：超分可视化图片会同时展示低清输入、超分结果、高清真值三行，方便直观对比。
 
+> **预估训练时间**：SRResNet 10 epoch 在 GPU 上约 1-2 分钟，CPU 上约 5-8 分钟。
+
 ### 这一阶段对应的工程实践
 
 | 工程概念 | 说明 | 代码位置 |
@@ -408,6 +418,8 @@ python main.py --config configs/sr/sr3.yaml
 ```
 
 > **提示**：SR3 默认只设了 50 步扩散（而非 DDPM 的 500 步），因为条件信息已经大幅降低了任务难度。但训练仍然需要较多 epoch 才能收敛。
+
+> **预估训练时间**：SR3 10 epoch（含 50 步采样评估）在 GPU 上约 5-8 分钟，CPU 上约 15-25 分钟。
 
 预期输出：
 
@@ -494,6 +506,8 @@ Epoch [1] Val PSNR: 19.5678 dB
 
 > **提示**：ResShift 只需 15 步采样，推理速度比 SR3（50 步）和 DDPM（500 步）快很多。
 
+> **预估训练时间**：ResShift 10 epoch（含 15 步采样评估）在 GPU 上约 3-5 分钟，CPU 上约 10-15 分钟。
+
 ### 这一阶段对应的工程实践
 
 | 工程概念 | 说明 | 代码位置 |
@@ -523,19 +537,6 @@ A: SR3 预测的是噪声（和 DDPM 一样），从纯噪声开始采样；ResS
 A: 因为低清条件图已经包含了图像的大部分信息，模型只需要补齐残差部分。而 DDPM/SR3 从纯噪声开始，需要更多步来"构建"整张图。
 
 ---
-
-### 这一阶段建议补做的内容
-
-- 先对比 `SR3` 和 `ResShift` 的输入、输出、loss 与采样起点
-- 再从 `trainer/sr3.py` 出发，列出改造成 `trainer/resshift.py` 的最小改动
-- 最后手推 `x_t = LR_up + s_t * (HR - LR_up) + sigma_t * z` 这类 shifted 公式
-
-建议把 `docs/resshift.md` 当成这一阶段的主文档，它现在已经补上了：
-
-- `SR3 vs ResShift` 的结构化对比
-- 从 `SR3` 改到 `ResShift` 的实现路线
-- 论文核心公式的复现题
-- 一套不带答案的练习题
 
 ## 第七阶段：工程实践与扩展
 

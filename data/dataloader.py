@@ -38,7 +38,7 @@ def _maybe_subset(dataset, max_samples):
 
 def _infer_task(config):
     trainer_name = config.get("trainer_name", "base")
-    if trainer_name in {"sr", "resshift"}:
+    if trainer_name in {"sr", "sr3", "resshift"}:
         return "super_resolution"
     return "standard"
 

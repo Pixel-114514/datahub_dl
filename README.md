@@ -1,5 +1,22 @@
 # Simple Diffusion SR Project
 
+## 30 秒快速上手
+
+```bash
+# 1. 安装依赖
+pip install -r requirements.txt
+
+# 2. 跑一个分类任务（确认环境没问题）
+python main.py --config configs/classification/cnn.yaml
+
+# 3. 跑 ResShift 超分（如果没有 GPU 加 --device cpu）
+python main.py --config configs/sr/resshift.yaml
+```
+
+> 跑通上面两步后，再看下面的详细内容。
+
+> **训练时间提醒**：DDPM 和 SR3 的完整训练需要较长时间（详见 `docs/learning_path.md` 各阶段的预估时间）。如果想快速验证流程，可以在 yaml 配置中加上 `data.max_train_samples: 512` 和 `data.max_val_samples: 128` 减少数据量。
+
 这是一个 PyTorch 项目，目标是用尽量清晰的工程结构，把以下几条主线串起来：
 
 - CNN / ResNet 分类训练

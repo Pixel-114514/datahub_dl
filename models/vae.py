@@ -39,7 +39,6 @@ class ConvVAE(nn.Module):
 
     def encode(self, x):
         h = self.encoder(x)
-        h = h.view(x.size(0), -1)
         return self.fc_mu(h), self.fc_logvar(h)
 
     def reparameterize(self, mu, logvar):

@@ -2,7 +2,21 @@ checkpoints
 fashion_data/
 data/MNIST/
 data/FashionMNIST/
+data/CIFAR10/
+data/cifar-10-*
 
 inference_results
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+.codex
+.claude/
+*.swp
+*.swo
+*~
+.DS_Store

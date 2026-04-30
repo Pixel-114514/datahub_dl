@@ -43,7 +43,8 @@ class GaussianDiffusion:
         return out.reshape(t.shape[0], *((1,) * (len(x_shape) - 1)))
 
     def q_sample(self, x_start, t, noise=None):
-        if noise is None: noise = torch.randn_like(x_start)
+        if noise is None:
+            noise = torch.randn_like(x_start)
         return (self._extract(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start +
                 self._extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise)
 

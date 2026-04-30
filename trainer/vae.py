@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from utils.logger import log
-from .base import BaseTrainer   # 按你实际路径修改
+from .base import BaseTrainer
 
 
 class VAETrainer(BaseTrainer):

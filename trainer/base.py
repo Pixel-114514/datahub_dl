@@ -32,6 +32,7 @@ class BaseTrainer:
         self.model = self._build_model().to(self.device)
         self.criterion = self._build_criterion()
         self.optimizer = self._build_optimizer()
+        self.lr_scheduler = self._build_scheduler()
 
         self.monitor_name = self._monitor_name()
         self.monitor_display_name = self._monitor_display_name()
@@ -53,6 +54,11 @@ class BaseTrainer:
         self.exp_dir.mkdir(exist_ok=True)
 
         self._save_config()
+
+        # 可选：从 checkpoint 恢复训练
+        resume_path = self.cfg.get("resume_path")
+        if resume_path:
+            self._resume_from_checkpoint(resume_path)
 
     # =====================
     # build components
@@ -94,6 +100,27 @@ class BaseTrainer:
             lr=self.cfg["train"]["lr"],
         )
 
+    def _build_scheduler(self):
+        scheduler_cfg = self.cfg.get("train", {}).get("scheduler")
+        if scheduler_cfg is None:
+            return None
+
+        name = scheduler_cfg.get("name", "cosine")
+        if name == "cosine":
+            return optim.lr_scheduler.CosineAnnealingLR(
+                self.optimizer,
+                T_max=self.cfg["train"]["epochs"],
+                eta_min=scheduler_cfg.get("eta_min", 0),
+            )
+        if name == "step":
+            return optim.lr_scheduler.StepLR(
+                self.optimizer,
+                step_size=scheduler_cfg.get("step_size", 10),
+                gamma=scheduler_cfg.get("gamma", 0.1),
+            )
+
+        raise ValueError(f"Unknown scheduler: {name}. Use 'cosine' or 'step'.")
+
     def _monitor_name(self):
         return "val_acc"
 
@@ -127,6 +154,17 @@ class BaseTrainer:
     # =====================
     # 保存相关
     # =====================
+
+    def _resume_from_checkpoint(self, path):
+        ckpt = torch.load(path, map_location=self.device)
+        self.model.load_state_dict(ckpt["model_state_dict"])
+        self.optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        self.start_epoch = ckpt.get("epoch", -1) + 1
+        if ckpt.get("best_metric") is not None:
+            self.best_metric = ckpt["best_metric"]
+            self.best_epoch = ckpt.get("best_epoch", -1)
+        log(f"Resumed from {path} (epoch {self.start_epoch}, "
+            f"best {self.monitor_display_name}: {self._format_metric(self.best_metric)})")
 
     def _save_config(self):
         """保存当前配置，便于复现"""
@@ -226,6 +264,9 @@ class BaseTrainer:
             should_save = is_best or (epoch + 1) % save_interval == 0 or (epoch + 1) == epochs
             if should_save:
                 self.save_checkpoint(epoch, is_best=is_best)
+
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
         if self.best_epoch >= 0:
             log(

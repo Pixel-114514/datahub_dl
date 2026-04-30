@@ -21,6 +21,12 @@ def parse_args():
         default=None,
         help="Override device: cuda / cpu / mps (optional)"
     )
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help="Path to checkpoint to resume training from (e.g. checkpoints/xxx/last.pth)"
+    )
     return parser.parse_args()
 
 
@@ -44,6 +50,9 @@ def main():
     # 可选：命令行参数覆盖 config 中的值
     if args.device:
         config["device"] = args.device
+
+    if args.resume:
+        config["resume_path"] = args.resume
 
     if "seed" in config:
         set_seed(config["seed"])
