@@ -8,6 +8,8 @@
 2. 这些知识点在本仓库里已经对应到哪些代码
 3. 还有哪些没有落成实现
 
+> 前置知识：[学习路径](learning_path.md)、[生成模型知识补充](generative_basics.md)、[项目架构导读](architecture.md)。
+
 如果有原始 PDF（`/home/dsw/Downloads/lecture_notes.pdf`），可以配合着看。
 
 ---

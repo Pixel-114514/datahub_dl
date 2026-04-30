@@ -12,11 +12,11 @@
 
 | 文档 | 讲什么 |
 |------|--------|
-| `docs/architecture.md` | 项目分层和调用链（就是这份） |
-| `docs/learning_path.md` | 整体学习顺序 |
-| `docs/generative_basics.md` | VAE、DDPM、SR3、ResShift 的核心概念 |
-| `docs/resshift.md` | 简化版 ResShift 的定位和思路 |
-| `docs/mit_6s184_flow_matching_notes.md` | MIT 课程与仓库代码的对照 |
+| [项目架构导读](architecture.md) | 项目分层和调用链（就是这份） |
+| [学习路径](learning_path.md) | 整体学习顺序 |
+| [生成模型知识补充](generative_basics.md) | VAE、DDPM、SR3、ResShift 的核心概念 |
+| [ResShift 学习说明](resshift.md) | 简化版 ResShift 的定位和思路 |
+| [MIT 课程对照笔记](mit_6s184_flow_matching_notes.md) | MIT 课程与仓库代码的对照 |
 
 ---
 
@@ -81,6 +81,8 @@ trainer_class = TRAINER_REGISTRY[config.get("trainer_name", "base")]
 trainer = trainer_class(config=config, train_loader=train_loader, val_loader=test_loader)
 trainer.fit()
 ```
+
+> 想了解每个阶段具体怎么跑，看 [学习路径](learning_path.md)。
 
 入口文件越薄越好。复杂逻辑堆在入口里，后面一扩展就乱。
 

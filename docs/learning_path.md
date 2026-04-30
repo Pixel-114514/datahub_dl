@@ -4,6 +4,8 @@
 
 从手写数字识别开始，一路走到扩散超分。每一步只变一个东西，保证你能跟上。
 
+> 第一次来建议先看 [项目架构导读](architecture.md) 了解整体分层，再按这份文档走。
+
 推荐顺序：
 
 1. 手写数字识别
@@ -51,10 +53,10 @@ Training finished. Best Val Acc: 0.9921 @ epoch 8
 
 对应代码不多，建议按这个顺序看：
 
-1. `configs/classification/cnn.yaml` — 看配置长什么样，每个字段控制什么
-2. `main.py` — 看配置怎么被读取、trainer 怎么被选出来
-3. `trainer/base.py` — 看 `train_one_epoch()` 和 `evaluate()` 的完整流程
-4. `models/cnn.py` — 看 `forward()` 的输入输出形状
+1. [configs/classification/cnn.yaml](../configs/classification/cnn.yaml) — 看配置长什么样，每个字段控制什么
+2. [main.py](../main.py) — 看配置怎么被读取、trainer 怎么被选出来
+3. [trainer/base.py](../trainer/base.py) — 看 `train_one_epoch()` 和 `evaluate()` 的完整流程
+4. [models/cnn.py](../models/cnn.py) — 看 `forward()` 的输入输出形状
 
 跑完 CNN 后再跑一下 ResNet：
 
@@ -116,10 +118,12 @@ Epoch [1] Train Loss: 258.1234 | Recon: 254.5678 | KL: 3.5556
 
 代码重点看四个文件：
 
-- `models/vae.py` — 编码器输出 `mu` 和 `logvar`，`reparameterize()` 做重参数化
-- `trainer/vae.py` — loss 为什么返回三项（总 loss / 重构 / KL），`_monitor_mode()` 为什么返回 `"min"`
-- `configs/generate/vae.yaml` — `latent_dim: 20` 控制潜空间维度
-- `inference_vae.py` — 如何从潜空间随机采样并生成
+- [models/vae.py](../models/vae.py) — 编码器输出 `mu` 和 `logvar`，`reparameterize()` 做重参数化
+- [trainer/vae.py](../trainer/vae.py) — loss 为什么返回三项（总 loss / 重构 / KL），`_monitor_mode()` 为什么返回 `"min"`
+- [configs/generate/vae.yaml](../configs/generate/vae.yaml) — `latent_dim: 20` 控制潜空间维度
+- [inference_vae.py](../inference_vae.py) — 如何从潜空间随机采样并生成
+
+> VAE 的知识点（KL 散度、重参数化、为什么生成模糊）详见 [生成模型知识补充](generative_basics.md#vae)。
 
 **VAE 生成模糊是正常的**——它优化的是"平均"输出，均值天然是模糊的。后面的扩散模型在生成质量上会好很多。
 
@@ -148,7 +152,7 @@ DDPM 的关键概念：
 
 训练时并不是从纯噪声走完整个采样链。它是随机抽一个时间步 `t`，只训练模型在这个 `t` 上的去噪能力。完整采样只在推理时才做。这比走完整链路高效得多，而且数学上等价。
 
-网络结构用的是 UNet（`models/ddpm/unet.py`），有下采样-瓶颈-上采样的对称结构。时间步信息通过正弦位置编码注入每个残差块。
+网络结构用的是 UNet（[models/ddpm/unet.py](../models/ddpm/unet.py)），有下采样-瓶颈-上采样的对称结构。时间步信息通过正弦位置编码注入每个残差块。
 
 值得动手试的事：
 
@@ -159,6 +163,8 @@ DDPM 的关键概念：
 **采样慢的原因**：推理时要从 `t=T` 一步步去噪到 `t=0`，每一步都要跑一次模型前向传播。T=500 就是 500 次。这就是后面 ResShift 要解决的问题。
 
 扩散模型通常把像素从 [0,1] 映射到 [-1,1]（配置里 `value_range: minus_one_one`），这样加噪后值域对称，训练更稳定。
+
+> DDPM 的知识点（时间步、噪声预测、采样为什么慢、score matching 的关系）详见 [生成模型知识补充](generative_basics.md#ddpm)。想深入理论可以看 [MIT 课程对照笔记](mit_6s184_flow_matching_notes.md)。
 
 ---
 
@@ -180,10 +186,10 @@ SRResNet 的思路是残差学习：网络不直接输出超分图，而是输�
 
 代码重点看：
 
-- `data/sr_dataset.py` — `(image, label)` 怎么变成 `(lr_up, hr)`
-- `models/sr.py` — 残差块结构、全局跳跃连接 `x + residual`
-- `trainer/sr.py` — `BaseSRTrainer` 是 SR3 和 ResShift 的父类
-- `utils/metrics.py` — PSNR 的计算
+- [data/sr_dataset.py](../data/sr_dataset.py) — `(image, label)` 怎么变成 `(lr_up, hr)`
+- [models/sr.py](../models/sr.py) — 残差块结构、全局跳跃连接 `x + residual`
+- [trainer/sr.py](../trainer/sr.py) — `BaseSRTrainer` 是 SR3 和 ResShift 的父类
+- [utils/metrics.py](../utils/metrics.py) — PSNR 的计算
 
 可以试的事：
 
@@ -205,7 +211,7 @@ python main.py --config configs/sr/sr3.yaml
 
 > SR3 默认 50 步扩散（DDPM 是 500 步），因为条件信息降低了任务难度。GPU 上 10 epoch 约 5-8 分钟，CPU 上 15-25 分钟。
 
-`models/sr3.py` 整个类只有十几行——核心就是把 `in_channels` 从 1 改成 2（1 通道噪声图 + 1 通道条件图）。`SR3UNet` 继承 `UNetModel`，结构完全没变，只是输入通道数多了 1。
+[models/sr3.py](../models/sr3.py) 整个类只有十几行——核心就是把 `in_channels` 从 1 改成 2（1 通道噪声图 + 1 通道条件图）。`SR3UNet` 继承 `UNetModel`，结构完全没变，只是输入通道数多了 1。
 
 训练时条件图通过通道拼接注入：
 
@@ -221,7 +227,9 @@ SR3 的推理仍然是从纯噪声开始，逐步去噪，每一步都参考低�
 
 - SRResNet 一步出结果，SR3 多步出结果 — 哪个更清晰？
 - SR3 的 `in_channels=2` 如果换成 RGB 图像就变成 `3+3=6`
-- 读 `models/sr3.py` 全文，只有十几行，看看"条件扩散"的工程实现有多简洁
+- 读 [models/sr3.py](../models/sr3.py) 全文，只有十几行，看看"条件扩散"的工程实现有多简洁
+
+> SR3 的知识点（条件扩散原理、通道拼接注入、和 DDPM 的关系）详见 [生成模型知识补充](generative_basics.md#sr3)。
 
 ---
 
@@ -257,6 +265,8 @@ ResShift 的核心变化：
 - **SRResNet**：一步直接修图，快但表达能力有限
 - **SR3**：标准条件扩散，从纯噪声开始，步数较多
 - **ResShift**：围绕残差设计的少步恢复，从低清图附近开始
+
+> ResShift 的算法细节（残差迁移公式、调度器构造、推理过程、和官方版的差异）详见 [ResShift 学习说明](resshift.md)。知识点层面的对比见 [生成模型知识补充](generative_basics.md#resshift)。
 
 ---
 

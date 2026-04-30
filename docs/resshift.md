@@ -34,6 +34,8 @@ SR3 证明了扩散模型可以带条件做超分。但 ResShift 追问的是另
 
 SR3 让你理解条件扩散怎么成立，ResShift 让你理解条件扩散怎么进一步贴近恢复任务。
 
+> SR3 和 ResShift 的知识点对比也收录在 [生成模型知识补充](generative_basics.md#resshift)。
+
 ---
 
 ## 本仓库的实现
@@ -48,11 +50,11 @@ SR3 让你理解条件扩散怎么成立，ResShift 让你理解条件扩散怎�
 
 | 文件 | 职责 |
 |------|------|
-| `models/resshift.py` | `ResShiftUNet`（网络）+ `ResidualShiftScheduler`（调度器） |
-| `trainer/resshift.py` | 训练逻辑：构造中间态 → 预测残差 → 算 loss |
-| `configs/sr/resshift.yaml` | 实验配置：timesteps、noise_level、schedule |
+| [models/resshift.py](../models/resshift.py) | `ResShiftUNet`（网络）+ `ResidualShiftScheduler`（调度器） |
+| [trainer/resshift.py](../trainer/resshift.py) | 训练逻辑：构造中间态 → 预测残差 → 算 loss |
+| [configs/sr/resshift.yaml](../configs/sr/resshift.yaml) | 实验配置：timesteps、noise_level、schedule |
 
-如果还没掌握 VAE、DDPM 和 SR3 的基本概念，建议先看 `docs/generative_basics.md`。
+如果还没掌握 VAE、DDPM 和 SR3 的基本概念，建议先看 [生成模型知识补充](generative_basics.md)。
 
 ---
 
@@ -328,6 +330,8 @@ ResShift 训练收敛较快，10 个 epoch 通常就能看到明显效果。
 - SR3 更像标准条件扩散，ResShift 更像面向恢复任务的残差迁移
 - 从工程实现看，ResShift 主要改 trainer 和 scheduler，不一定先改 UNet
 - ResShift 的少步采样来自任务表述变化，不是"粗暴减少 step 数"
+
+> 更多扩展练习见 [学习路径 > 工程实践与扩展](learning_path.md#第七阶段工程实践与扩展)。
 
 ---
 

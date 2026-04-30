@@ -6,6 +6,8 @@
 2. 它们的训练目标为什么不一样
 3. 它们在本项目里分别对应哪些代码
 
+> 如果你想知道"先学什么再学什么"，看 [学习路径](learning_path.md)。想了解项目为什么这样分层，看 [项目架构导读](architecture.md)。
+
 ---
 
 ## 先区分两类任务
@@ -83,10 +85,12 @@ VAE 生成的图像通常比扩散模型模糊，因为它优化的是"平均"�
 
 | 文件 | 看什么 |
 |------|--------|
-| `models/vae.py` | 编码器输出 `mu` 和 `logvar`；`reparameterize()` 把采样写成可训练形式 |
-| `trainer/vae.py` | loss 返回三项（总 / 重构 / KL）；`_monitor_mode()` 返回 `"min"` |
-| `configs/generate/vae.yaml` | `latent_dim: 20` 控制潜空间维度 |
-| `inference_vae.py` | 从潜空间随机采样并生成图像 |
+| [models/vae.py](../models/vae.py) | 编码器输出 `mu` 和 `logvar`；`reparameterize()` 把采样写成可训练形式 |
+| [trainer/vae.py](../trainer/vae.py) | loss 返回三项（总 / 重构 / KL）；`_monitor_mode()` 返回 `"min"` |
+| [configs/generate/vae.yaml](../configs/generate/vae.yaml) | `latent_dim: 20` 控制潜空间维度 |
+| [inference_vae.py](../inference_vae.py) | 从潜空间随机采样并生成图像 |
+
+> 想动手跑 VAE，看 [学习路径 > 第二阶段](learning_path.md#第二阶段vae-图片生成)。
 
 ---
 
@@ -167,10 +171,12 @@ elif beta_schedule == 'cosine':
 
 | 文件 | 看什么 |
 |------|--------|
-| `models/ddpm/unet.py` | `timestep_embedding()`；`UNetModel.forward(x, timesteps)` |
-| `models/ddpm/diffusion.py` | `q_sample()` 加噪、`p_sample()` 去噪、`_extract()` 取系数 |
-| `trainer/diffusion.py` | 训练时随机采样 `t`；验证时保存采样图片 |
-| `configs/generate/ddpm.yaml` | `diffusion.timesteps: 500`、`diffusion.schedule: linear` |
+| [models/ddpm/unet.py](../models/ddpm/unet.py) | `timestep_embedding()`；`UNetModel.forward(x, timesteps)` |
+| [models/ddpm/diffusion.py](../models/ddpm/diffusion.py) | `q_sample()` 加噪、`p_sample()` 去噪、`_extract()` 取系数 |
+| [trainer/diffusion.py](../trainer/diffusion.py) | 训练时随机采样 `t`；验证时保存采样图片 |
+| [configs/generate/ddpm.yaml](../configs/generate/ddpm.yaml) | `diffusion.timesteps: 500`、`diffusion.schedule: linear` |
+
+> 想动手跑 DDPM，看 [学习路径 > 第三阶段](learning_path.md#第三阶段ddpm-基础扩散)。想深入 score matching 和 flow matching 的理论，看 [MIT 课程对照笔记](mit_6s184_flow_matching_notes.md)。
 
 训练时不是从纯噪声走完整采样链——随机抽一个 `t`，只训练这个时间步的去噪能力。完整采样只在推理时做。
 
@@ -225,10 +231,12 @@ SR3 推理时从纯噪声开始，逐步去噪，每步都参考低清条件图�
 
 | 文件 | 看什么 |
 |------|--------|
-| `models/sr3.py` | 整个类只有十几行，核心是 `in_channels=2` |
-| `trainer/sr3.py` | `torch.cat([x_noisy, lr], dim=1)` 是条件注入的关键 |
-| `models/ddpm/diffusion.py` | SR3 直接复用 DDPM 的 `GaussianDiffusion` |
-| `configs/sr/sr3.yaml` | `diffusion.timesteps: 50`（比 DDPM 的 500 少） |
+| [models/sr3.py](../models/sr3.py) | 整个类只有十几行，核心是 `in_channels=2` |
+| [trainer/sr3.py](../trainer/sr3.py) | `torch.cat([x_noisy, lr], dim=1)` 是条件注入的关键 |
+| [models/ddpm/diffusion.py](../models/ddpm/diffusion.py) | SR3 直接复用 DDPM 的 `GaussianDiffusion` |
+| [configs/sr/sr3.yaml](../configs/sr/sr3.yaml) | `diffusion.timesteps: 50`（比 DDPM 的 500 少） |
+
+> 想动手跑 SR3，看 [学习路径 > 第五阶段](learning_path.md#第五阶段sr3-条件扩散超分)。
 
 ---
 
@@ -296,9 +304,11 @@ def q_sample(self, target, condition, t, noise=None):
 
 | 文件 | 看什么 |
 |------|--------|
-| `models/resshift.py` | `ResidualShiftScheduler.q_sample()` 构造中间态；`sample()` 逐步恢复 |
-| `trainer/resshift.py` | 训练时 `scheduler.q_sample(hr, lr, t)`；推理时 `scheduler.sample(model, lr)` |
-| `configs/sr/resshift.yaml` | `resshift.timesteps: 15`、`noise_level: 0.15`、`schedule: cosine` |
+| [models/resshift.py](../models/resshift.py) | `ResidualShiftScheduler.q_sample()` 构造中间态；`sample()` 逐步恢复 |
+| [trainer/resshift.py](../trainer/resshift.py) | 训练时 `scheduler.q_sample(hr, lr, t)`；推理时 `scheduler.sample(model, lr)` |
+| [configs/sr/resshift.yaml](../configs/sr/resshift.yaml) | `resshift.timesteps: 15`、`noise_level: 0.15`、`schedule: cosine` |
+
+> ResShift 的算法详解、练习题和自查清单见 [ResShift 学习说明](resshift.md)。想动手跑 ResShift，看 [学习路径 > 第六阶段](learning_path.md#第六阶段resshift-少步扩散超分)。
 
 ---
 
@@ -322,13 +332,13 @@ VAE 教你潜变量、概率分布约束、重参数化。扩散模型教你时�
 
 ## 和代码怎么对应
 
-学 VAE 时重点看 `models/vae.py`（输出和分类模型有什么不同）和 `trainer/vae.py`（为什么不用基类的损失和验证逻辑）。
+学 VAE 时重点看 [models/vae.py](../models/vae.py)（输出和分类模型有什么不同）和 [trainer/vae.py](../trainer/vae.py)（为什么不用基类的损失和验证逻辑）。
 
-学 DDPM 时重点看 `models/ddpm/unet.py`（预测噪声的网络）、`models/ddpm/diffusion.py`（加噪/去噪公式）、`trainer/diffusion.py`（两者怎么串起来）。
+学 DDPM 时重点看 [models/ddpm/unet.py](../models/ddpm/unet.py)（预测噪声的网络）、[models/ddpm/diffusion.py](../models/ddpm/diffusion.py)（加噪/去噪公式）、[trainer/diffusion.py](../trainer/diffusion.py)（两者怎么串起来）。
 
-学 SR3 时重点看 `trainer/sr3.py`（无条件扩散怎么变成条件扩散）和 `models/sr3.py`（为什么低清图和噪声图要拼接）。
+学 SR3 时重点看 [trainer/sr3.py](../trainer/sr3.py)（无条件扩散怎么变成条件扩散）和 [models/sr3.py](../models/sr3.py)（为什么低清图和噪声图要拼接）。
 
-学 ResShift 时重点看 `data/sr_dataset.py`（样本从 `(image, label)` 变成 `(lr_up, hr)`）、`trainer/resshift.py`（训练目标从一步回归变成多步残差恢复）、`models/resshift.py`（调度器怎么构造中间态）。
+学 ResShift 时重点看 [data/sr_dataset.py](../data/sr_dataset.py)（样本从 `(image, label)` 变成 `(lr_up, hr)`）、[trainer/resshift.py](../trainer/resshift.py)（训练目标从一步回归变成多步残差恢复）、[models/resshift.py](../models/resshift.py)（调度器怎么构造中间态）。
 
 ---
 
