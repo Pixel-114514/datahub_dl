@@ -15,118 +15,109 @@ python main.py --config configs/sr/resshift.yaml
 
 > 跑通上面两步后，再看下面的详细内容。
 
-> DDPM 和 SR3 完整训练需要较长时间（详见 `docs/learning_path.md` 各阶段预估时间）。想快速验证流程，可以在 yaml 里加 `data.max_train_samples: 512` 和 `data.max_val_samples: 128` 减少数据量。
+> DDPM 和 SR3 完整训练需要较长时间（详见 [学习路径](docs/learning_path.md) 各阶段预估时间）。想快速验证流程，可以在 yaml 里加 `data.max_train_samples: 512` 和 `data.max_val_samples: 128` 减少数据量。
 
 ---
 
-这是一个 PyTorch 项目，用尽量清晰的工程结构串起几条主线：
+这是一个 PyTorch 教学项目，用尽量清晰的工程结构串起六条学习主线：
 
-- CNN / ResNet 分类训练
-- VAE 生成建模
-- DDPM 基础扩散
-- 超分辨率基线训练
-- SR3 条件扩散超分
-- ResShift 风格的扩散式超分
+| 主线 | 任务类型 | 核心概念 |
+|------|----------|----------|
+| CNN / ResNet | 分类 | 训练循环、loss、优化器 |
+| VAE | 生成 | 潜变量、KL 散度、重参数化 |
+| DDPM | 生成 | 时间步、噪声预测、多步采样 |
+| SRResNet | 超分 | 残差学习、PSNR、数据包装 |
+| SR3 | 超分 | 条件扩散、通道拼接 |
+| ResShift | 超分 | 残差迁移、少步采样 |
 
 仓库里的 ResShift 是简化实现，保留"残差迁移 + 少步数采样"的核心思路，不是官方仓库的完整复现。
 
-## 阅读入口
+## 教学路线安排
 
-第一次看这个项目，先别直接扎进某个模型文件。按这个顺序读：
+这条路径的设计原则是**每一步只变一个东西**：
 
-1. `docs/architecture.md` — 项目分层
-2. `docs/learning_path.md` — 整体顺序
-3. `docs/generative_basics.md` — VAE、DDPM、SR3、ResShift 的知识点
-4. `docs/mit_6s184_flow_matching_notes.md` — MIT 课程与仓库代码的对照
-5. `configs/classification/cnn.yaml` — 看配置长什么样
-6. `main.py` — 看配置怎么被读取
-7. `trainer/base.py` — 看通用训练骨架
-8. 再回头看具体任务的 trainer 和 model
+```
+分类（学会训练）
+ → VAE（从判别到生成，引入潜变量）
+  → DDPM（从一步到位到多步迭代，引入时间步）
+   → SRResNet（从生成到恢复，引入残差学习）
+    → SR3（无条件扩散 → 条件扩散，引入条件输入）
+     → ResShift（预测噪声 → 预测残差，引入少步采样）
+```
+
+为什么这样排：
+
+- **分类 → VAE**：从"做判断"转到"建模分布"，先搞懂潜变量和 loss 由多项组成
+- **VAE → DDPM**：从"一步编解码"转到"多步加噪去噪"，理解时间步和噪声调度
+- **DDPM → SRResNet**：从"无条件生成"转到"条件恢复"，理解残差学习和 PSNR
+- **SRResNet → SR3**：只变一件事——把低清条件图拼到输入里，网络结构不变
+- **SR3 → ResShift**：只变一件事——预测目标从噪声换成残差，采样起点从纯噪声换成低清图附近
+
+每一步之间的跨度都控制在一个核心概念以内，不会出现"从 A 直接跳到 D"的情况。
+
+详细的学习路径（每阶段跑什么、看什么代码、预期输出、常见问题）见 [docs/learning_path.md](docs/learning_path.md)。
+
+## 文档导航
+
+| 文档 | 适合谁 | 讲什么 |
+|------|--------|--------|
+| [项目架构导读](docs/architecture.md) | 第一次来的学员 | 四层结构（config / main / trainer / model / data）、调用链、注册表模式 |
+| [学习路径](docs/learning_path.md) | 跟着走的学员 | 七个阶段的具体操作、代码指引、预期输出 |
+| [生成模型知识补充](docs/generative_basics.md) | 跑通代码后想搞懂原理的学员 | VAE、DDPM、SR3、ResShift 的核心概念和代码对应 |
+| [ResShift 学习说明](docs/resshift.md) | 学到 ResShift 阶段的学员 | 算法详解、和 SR3 的对比、从 SR3 改造的路线、练习题 |
+| [MIT 课程对照笔记](docs/mit_6s184_flow_matching_notes.md) | 想深入理论的学员 | MIT 6.S184 课程与仓库代码的映射，flow matching / score matching |
+
+建议按上面的顺序读。先看架构建立全局认知，再按学习路径走，遇到不懂的概念查 generative_basics，学到 ResShift 时看 resshift.md，想补理论看 MIT 笔记。
 
 ## 训练入口
 
 ```bash
-python main.py --config configs/classification/cnn.yaml
-python main.py --config configs/classification/resnet.yaml
-python main.py --config configs/generate/vae.yaml
-python main.py --config configs/generate/ddpm.yaml
-python main.py --config configs/sr/srresnet.yaml
-python main.py --config configs/sr/sr3.yaml
-python main.py --config configs/sr/resshift.yaml
+python main.py --config configs/classification/cnn.yaml       # CNN 分类
+python main.py --config configs/classification/resnet.yaml     # ResNet 分类
+python main.py --config configs/generate/vae.yaml              # VAE 生成
+python main.py --config configs/generate/ddpm.yaml             # DDPM 扩散
+python main.py --config configs/sr/srresnet.yaml               # 超分基线
+python main.py --config configs/sr/sr3.yaml                    # SR3 条件扩散超分
+python main.py --config configs/sr/resshift.yaml               # ResShift 少步超分
 ```
 
-没有 GPU 加 `--device cpu`：
-
-```bash
-python main.py --config configs/sr/resshift.yaml --device cpu
-```
+没有 GPU 加 `--device cpu`。每个配置的详细说明见 [学习路径](docs/learning_path.md) 对应阶段。
 
 ## 项目结构
 
 ```text
 simple_dl_project/
-├── configs/
-│   ├── classification/       # cnn.yaml, resnet.yaml
-│   ├── generate/             # vae.yaml, ddpm.yaml
-│   └── sr/                   # srresnet.yaml, sr3.yaml, resshift.yaml
+├── configs/                        # 实验配置
+│   ├── classification/             #   cnn.yaml, resnet.yaml
+│   ├── generate/                   #   vae.yaml, ddpm.yaml
+│   └── sr/                         #   srresnet.yaml, sr3.yaml, resshift.yaml
 ├── data/
-│   ├── dataloader.py         # 统一数据加载入口
-│   ├── sr_dataset.py         # 超分数据包装
-│   └── transforms.py         # 图像预处理
-├── docs/
-│   ├── architecture.md       # 项目分层和调用链
-│   ├── learning_path.md      # 学习路径
-│   ├── generative_basics.md  # 生成模型核心概念
-│   ├── mit_6s184_flow_matching_notes.md  # MIT 课程对照
-│   └── resshift.md           # ResShift 学习说明
+│   ├── dataloader.py               # 统一数据加载入口
+│   ├── sr_dataset.py               # 超分数据包装：(image,label) → (lr_up,hr)
+│   └── transforms.py               # 图像预处理和值域映射
+├── docs/                           # 教学文档（见上方导航表）
 ├── models/
 │   ├── ddpm/
-│   │   ├── unet.py           # UNet 扩散去噪网络
-│   │   └── diffusion.py      # GaussianDiffusion 调度器
-│   ├── cnn.py, resnet.py     # 分类网络
-│   ├── vae.py                # ConvVAE
-│   ├── sr.py                 # SimpleSRResNet
-│   ├── sr3.py                # SR3UNet
-│   └── resshift.py           # ResShiftUNet + ResidualShiftScheduler
+│   │   ├── unet.py                 # UNet 扩散去噪网络
+│   │   └── diffusion.py            # GaussianDiffusion 调度器
+│   ├── cnn.py, resnet.py           # 分类网络
+│   ├── vae.py                      # ConvVAE
+│   ├── sr.py                       # SimpleSRResNet
+│   ├── sr3.py                      # SR3UNet（继承 UNetModel，改 in_channels=2）
+│   └── resshift.py                 # ResShiftUNet + ResidualShiftScheduler
 ├── trainer/
-│   ├── base.py               # BaseTrainer 通用训练骨架
-│   ├── diffusion.py          # DiffusionTrainer
-│   ├── sr.py                 # BaseSRTrainer + SuperResolutionTrainer
-│   ├── sr3.py                # SR3Trainer
-│   ├── resshift.py           # ResShiftTrainer
-│   └── vae.py                # VAETrainer
-├── utils/
-│   ├── logger.py, metrics.py, seed.py
-├── demo.ipynb, ddpm_mnist.ipynb, sr.ipynb, vae.ipynb
-├── inference_vae.py
-└── main.py
+│   ├── base.py                     # BaseTrainer 通用训练骨架
+│   ├── vae.py                      # VAETrainer
+│   ├── diffusion.py                # DiffusionTrainer
+│   ├── sr.py                       # BaseSRTrainer + SuperResolutionTrainer
+│   ├── sr3.py                      # SR3Trainer
+│   └── resshift.py                 # ResShiftTrainer
+├── utils/                          # 日志、指标、随机种子
+├── main.py                         # 总入口：读配置 → 选 trainer → 启动训练
+└── inference_vae.py                # VAE 推理脚本
 ```
 
-## 先理解什么再理解什么
-
-这个项目不是"先看网络细节"，而是"先看工程骨架，再看算法差异"。
-
-建议顺序：
-
-1. 先理解 `main.py → trainer → model → data` 这条主链路
-2. 再从分类任务进入生成任务
-3. 再从无条件扩散进入条件扩散超分
-4. 最后理解 ResShift 这种面向恢复任务的改造
-
-一开始就钻进 UNet 或 ResNet 细节，通常会看懂局部、看不懂整体。
-
-## 生成模型知识从哪里看
-
-如果你会问这些问题：
-
-- VAE 为什么要有 `mu / logvar`
-- KL 散度到底在约束什么
-- 扩散模型为什么要预测噪声
-- DDPM 为什么会慢
-- SR3 为什么是 DDPM 到 ResShift 的桥梁
-- ResShift 和普通 DDPM 到底差在哪
-
-推荐直接看 `docs/learning_path.md`、`docs/generative_basics.md`、`docs/resshift.md`。这几份文档按顺序写，不要求先掌握完整论文公式。
+> 想理解每层的职责和调用关系，看 [项目架构导读](docs/architecture.md)。
 
 ## 超分任务怎么跑
 
@@ -137,7 +128,17 @@ simple_dl_project/
 3. 把低分辨率图像插值回原尺寸
 4. 返回 `(lr_up, hr)` 给训练器
 
-不需要先准备 DIV2K 这类大数据集，就能把超分训练流程完整跑通。
+不需要先准备 DIV2K 那种大数据集，用 MNIST 就能跑通整个流程。[data/sr_dataset.py](data/sr_dataset.py) 负责这个包装。
+
+三种超分方法的区别：
+
+| 方法 | 步数 | 预测目标 | 采样起点 | 配置 |
+|------|------|----------|----------|------|
+| SRResNet | 1 | 残差 | — | [srresnet.yaml](configs/sr/srresnet.yaml) |
+| SR3 | 50-100 | 噪声 | 纯噪声 | [sr3.yaml](configs/sr/sr3.yaml) |
+| ResShift | ~15 | 残差 | 低清图附近 | [resshift.yaml](configs/sr/resshift.yaml) |
+
+三种方法的详细对比见 [生成模型知识补充 > ResShift](docs/generative_basics.md#resshift) 和 [ResShift 学习说明](docs/resshift.md)。
 
 加速实验：
 
@@ -147,35 +148,11 @@ data:
   max_val_samples: 256
 ```
 
-## 两条超分主线
-
-### 1. 超分基线 `configs/sr/srresnet.yaml`
-
-输入双三次插值后的低清图，直接预测高频残差。适合先建立超分任务、PSNR 和残差学习的直觉。
-
-### 2. SR3 简化版 `configs/sr/sr3.yaml`
-
-把 DDPM 变成带低清条件图的扩散超分模型。适合作为 DDPM 到 ResShift 的桥梁，先理解"条件扩散超分"。
-
-### 3. ResShift 简化版 `configs/sr/resshift.yaml`
-
-把高分图和低分条件图之间的残差拆进一个少步数的"shift"过程。训练目标是随机采样时间步，预测 `HR - LR_up` 残差。推理从低清条件图加噪开始，逐步恢复残差并重建高分图。
-
-保留了 ResShift 最核心的几个点：
-
-- 条件输入不是纯噪声，而是退化后的低质图像
-- 关注"残差迁移"而不是无条件生成
-- 推理步数明显比传统 DDPM 更短
-
-但没有追求官方仓库级别的真实图像恢复效果，训练数据、退化方式、网络规模都做了简化。
-
 ## 输出内容
 
 - 分类任务：保存 `last.pth / best.pth`
 - VAE / DDPM：保存权重与生成样例
-- SR / SR3 / ResShift：额外保存 `sr_epoch_x.png`
-
-`sr_epoch_x.png` 三行分别是：低清输入、模型输出、高分真值。
+- SR / SR3 / ResShift：额外保存 `sr_epoch_x.png`（低清输入 / 模型输出 / 高分真值，三行对比）
 
 ## 配置约定
 
@@ -198,35 +175,24 @@ data:
   root: ./data
   image_size: 28
   scale_factor: 2
-  value_range: zero_one
+  value_range: zero_one       # zero_one 或 minus_one_one
 ```
 
-`data.value_range` 支持 `zero_one` 和 `minus_one_one`。
+## 工程设计
 
-## trainer 层怎么理解
+这个项目的工程骨架值得单独看。[trainer/base.py](trainer/base.py) 不再只服务分类——每个任务声明自己监控什么指标（准确率 / loss / PSNR），基类统一负责比较 best 和保存 checkpoint。
 
-`trainer/base.py` 不再默认只服务分类任务。每个任务告诉基类"我监控什么指标"，基类统一负责比较 best、保存 `best.pth` 和 `last.pth`。
+新增任务只需要三步：写一个 trainer 类（继承 BaseTrainer）→ 在 TRAINER_REGISTRY 注册 → 写一个 yaml 配置。main.py 不用改。这就是注册表模式的好处。
 
-工程里最怕的不是没有抽象，而是多个任务各写一套相似但不一致的流程。这次重构就是"把重复逻辑收回父类"的典型例子。
+> 详细的设计思路和扩展练习见 [项目架构导读](docs/architecture.md)。
 
-## 推荐学习顺序
+## 论文与资料
 
-1. 先跑 `cnn.yaml` 和 `resnet.yaml`，理解通用训练入口
-2. 再跑 `vae.yaml`，理解生成模型和 trainer 定制
-3. 再跑 `ddpm.yaml`，理解时间步、噪声调度和采样
-4. 然后跑 `srresnet.yaml`，建立超分任务直觉
-5. 再跑 `sr3.yaml`，理解条件扩散超分
-6. 最后跑 `resshift.yaml`，理解少步扩散超分和残差迁移
-
-## ResShift 资料
-
-- 生成模型基础讲义：`docs/generative_basics.md`
-- 学习路径：`docs/learning_path.md`
-- 项目架构讲义：`docs/architecture.md`
-- 仓库内讲义：`docs/resshift.md`（含 SR3 vs ResShift 对比、改造路线、练习题）
-- ResShift 论文：<https://arxiv.org/abs/2307.12348>
-- ResShift 官方仓库：<https://github.com/zsyOAOA/ResShift>
-- SR3 论文：<https://arxiv.org/abs/2104.07636>
+| 资料 | 链接 |
+|------|------|
+| ResShift 论文 | <https://arxiv.org/abs/2307.12348> |
+| ResShift 官方仓库 | <https://github.com/zsyOAOA/ResShift> |
+| SR3 论文 | <https://arxiv.org/abs/2104.07636> |
 
 ## 依赖
 
@@ -234,4 +200,4 @@ data:
 pip install -r requirements.txt
 ```
 
-当前 `requirements.txt`：`torch`、`torchvision`、`pyyaml`、`numpy`、`matplotlib`。
+`torch`、`torchvision`、`pyyaml`、`numpy`、`matplotlib`。
