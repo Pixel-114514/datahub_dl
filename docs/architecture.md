@@ -93,23 +93,35 @@ trainer 是整个项目最关键的抽象。它负责"怎么训练"，不负责"
 继承体系：
 
 ```
-BaseTrainer
-├── VAETrainer           # 覆写 loss 和 evaluate
-├── DiffusionTrainer     # 覆写 loss、增加采样可视化
-└── BaseSRTrainer        # 覆写 evaluate（PSNR）、增加可视化
-    ├── SuperResolutionTrainer  # 覆写 loss（L1）
-    ├── SR3Trainer              # 覆写 loss（MSE噪声预测）、增加扩散调度器
-    └── ResShiftTrainer         # 覆写 loss（MSE残差预测）、增加残差调度器
+                          BaseTrainer
+                   ┌─────────┼──────────────┐
+                   │         │              │
+             VAETrainer  DiffusionTrainer  BaseSRTrainer
+                                            ┌──┼──┐
+                                            │  │  │
+                                     SRTrainer SR3Trainer ResShiftTrainer
+```
+
+每个子类只覆写自己需要的方法，其余继承父类：
+
+```
+BaseTrainer（fit / train_one_epoch / evaluate / save_checkpoint）
+ │
+ ├── VAETrainer
+ │     └─ 覆写：train_one_epoch（返回 recon+kl 双 loss）、evaluate（返回 val_loss）
+ │
+ ├── DiffusionTrainer
+ │     └─ 覆写：train_one_epoch（随机采样 t、预测噪声）、evaluate（保存采样图片 + val noise loss）
+ │
+ └── BaseSRTrainer
+       └─ 覆写：evaluate（PSNR 指标、保存对比图）、新增 infer() 接口
+             │
+             ├── SuperResolutionTrainer  → 覆写 train_one_epoch（L1 残差 loss）
+             ├── SR3Trainer              → 覆写 train_one_epoch（MSE 噪声预测 + GaussianDiffusion 调度器）
+             └── ResShiftTrainer         → 覆写 train_one_epoch（MSE 残差预测 + ResidualShiftScheduler）
 ```
 
 `BaseTrainer` 统一处理设备选择、模型构建、优化器构建、checkpoint 保存、训练循环、验证循环、最优指标监控。具体任务只需覆写少量方法。
-
-| 任务 | 覆写了什么 | 不变的是什么 |
-|------|-----------|-------------|
-| 分类（默认） | 无 | 全部 |
-| VAE | loss、train_one_epoch、evaluate | fit()、checkpoint |
-| DDPM | loss、train_one_epoch、evaluate，新增采样保存 | fit()、checkpoint |
-| SR / SR3 / ResShift | loss、train_one_epoch、infer | evaluate（BaseSRTrainer 统一实现） |
 
 设计原则：**通用流程放父类，任务差异放子类。**
 

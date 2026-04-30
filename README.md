@@ -154,6 +154,32 @@ data:
 - VAE / DDPM：保存权重与生成样例
 - SR / SR3 / ResShift：额外保存 `sr_epoch_x.png`（低清输入 / 模型输出 / 高分真值，三行对比）
 
+## 推理脚本
+
+训练完想单独做推理，有两个脚本可以用：
+
+```bash
+# VAE 推理：从潜空间采样生成图像
+python inference_vae.py --ckpt checkpoints/vae_mnist/best.pth
+
+# 超分推理：加载 checkpoint 生成对比图（支持 SRResNet / SR3 / ResShift）
+python inference_sr.py --ckpt checkpoints/resshift_mnist_toy/best.pth
+python inference_sr.py --ckpt checkpoints/sr3_mnist_toy/best.pth --device cpu
+```
+
+`inference_sr.py` 会输出低清输入 / 模型输出 / 高清真值的并排对比图，并打印 PSNR。
+
+三种超分方法一键对比：
+
+```bash
+python compare_sr.py \
+    --sr_ckpt checkpoints/srresnet_mnist/best.pth \
+    --sr3_ckpt checkpoints/sr3_mnist_toy/best.pth \
+    --resshift_ckpt checkpoints/resshift_mnist_toy/best.pth
+```
+
+生成五行并排对比图（低清 / SRResNet / SR3 / ResShift / 高清），并打印各自 PSNR。
+
 ## 配置约定
 
 ```yaml
