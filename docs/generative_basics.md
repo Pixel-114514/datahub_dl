@@ -220,7 +220,7 @@ class SR3UNet(UNetModel):
 SR3 是从 DDPM 到 ResShift 的桥梁。没有 SR3，直接从无条件扩散跳到 ResShift 跨度太大。有了 SR3，路径变成：
 
 ```
-DDPM（无条件扩散）→ SR3（条件扩散）→ ResShift（少步残差恢复）
+DDPM（无条件扩散）→ SR3（条件扩散）→ ResShift（少步 `x_0` 恢复）
 ```
 
 每一步只变一个东西。
@@ -244,61 +244,57 @@ SR3 推理时从纯噪声开始，逐步去噪，每步都参考低清条件图�
 
 ResShift 的出发点很直接：超分任务里低清图已经包含了大量结构信息，没必要像无条件生成那样从纯噪声开始慢慢采样。
 
-### 为什么要关注残差
+### 为什么要关注 residual shifting
 
-低清图里已经有大部分低频结构（整体形状、明暗分布），真正难补的是高频细节（边缘锐度、纹理清晰度）。所以与其重新生成整张图，不如学 `残差 = 高分图 - 低清图`，让网络聚焦于"缺失的信息"。
-
-低清图就像素描草稿，残差就是上色的部分。不需要重画草稿，只需要添色。
+低清图里已经有大部分低频结构，因此 ResShift 不再像 DDPM / SR3 那样从纯噪声出发，而是把 forward / reverse 过程设计在 `x_0` 和 `y_0` 之间。这样最终先验更接近 LR 条件图，采样步数也可以明显缩短。
 
 ### 训练过程
 
 ```
-1. 残差：residual = HR - LR_up
+1. 记 `x_0 = HR`，`y_0 = LR_up`
 2. 随机采样时间步 t
-3. 构造中间态：shifted = LR_up + residual_scale[t] * residual + noise_scale[t] * noise
-4. 模型预测残差：predicted_residual = model(cat([shifted, LR_up], dim=1), t)
-5. loss = MSE(predicted_residual, residual)
+3. 构造中间态：`x_t = x_0 + eta_t (y_0 - x_0) + kappa * sqrt(eta_t) * noise`
+4. 模型预测 `x_0`：`predicted_x0 = model(cat([x_t, y_0], dim=1), t)`
+5. `loss = MSE(predicted_x0, x_0)`
 ```
 
-`residual_scale` 从 1.0 降到 0.0，`noise_scale` 相应增大。`t=0` 时中间态接近目标图（残差完整），`t=T` 时中间态接近低清图加噪声（残差几乎消失）。
+`eta_t` 随时间步增大。`t` 小时中间态接近 `x_0`，`t` 大时中间态接近 `y_0 + noise`。
 
 ```python
 # models/resshift.py
 def q_sample(self, target, condition, t, noise=None):
-    residual = target - condition
     if noise is None: noise = torch.randn_like(target)
-    residual_scale = self._extract(self.residual_scales, t, target.shape)
-    noise_scale = self._extract(self.noise_scales, t, target.shape)
-    shifted = condition + residual_scale * residual + noise_scale * noise
-    return shifted, residual
+    eta_t = self._extract(self.etas, t, target.shape)
+    shifted = target + eta_t * (condition - target) + self.kappa * torch.sqrt(eta_t) * noise
+    return shifted, target
 ```
 
 ### 推理过程
 
-从低清图附近开始，逐步恢复残差：
+从低清图附近开始，逐步恢复 `x_0`：
 
 ```
-1. current = LR_up + noise_scale[-1] * 随机噪声
+1. current = LR_up + kappa * 随机噪声
 2. for step = T-1, T-2, ..., 1:
-3.     predicted_residual = model(cat([current, LR_up], dim=1), step)
-4.     current = LR_up + residual_scale[step-1] * predicted_residual + noise_scale[step-1] * 噪声
-5. current = LR_up + predicted_residual  (step=0 不加噪声)
+3.     predicted_x0 = model(cat([current, LR_up], dim=1), step)
+4.     current = posterior_mean(current, predicted_x0, step) + sqrt(var_t) * 噪声
+5. current = predicted_x0  (step=0)
 6. return current
 ```
 
-最后一步不加噪声——此时模型应该能精确预测完整残差，加噪声反而破坏结果。
+最后一步直接输出 `predicted_x0`。
 
 ### ResShift vs DDPM vs SR3 vs SRResNet
 
 | | DDPM | SR3 | ResShift | SRResNet |
 |---|------|-----|----------|----------|
-| 建模对象 | 噪声 | 噪声 | 残差 | 残差 |
+| 建模对象 | 噪声 | 噪声 | residual shifting | 残差 |
 | 采样起点 | 纯噪声 | 纯噪声 | 低清图附近 | — |
 | 采样步数 | 500-1000 | 50-100 | ~15 | 1 |
 | 条件信息 | 无 | 低清图 | 低清图 | 低清图 |
-| 训练目标 | 预测噪声 ε | 预测噪声 ε | 预测残差 R | 预测残差 R |
+| 训练目标 | 预测噪声 ε | 预测噪声 ε | 预测 `x_0` | 预测残差 R |
 
-一句话总结：SRResNet 是"一步修图"，SR3 是"多步条件去噪"，ResShift 是"少步残差修图"。
+一句话总结：SRResNet 是"一步修图"，SR3 是"多步条件去噪"，ResShift 是"少步 `x_0` 恢复"。
 
 代码对应：
 
@@ -306,7 +302,7 @@ def q_sample(self, target, condition, t, noise=None):
 |------|--------|
 | [models/resshift.py](../models/resshift.py) | `ResidualShiftScheduler.q_sample()` 构造中间态；`sample()` 逐步恢复 |
 | [trainer/resshift.py](../trainer/resshift.py) | 训练时 `scheduler.q_sample(hr, lr, t)`；推理时 `scheduler.sample(model, lr)` |
-| [configs/sr/resshift.yaml](../configs/sr/resshift.yaml) | `resshift.timesteps: 15`、`noise_level: 0.15`、`schedule: cosine` |
+| [configs/sr/resshift.yaml](../configs/sr/resshift.yaml) | `resshift.timesteps: 15`、`noise_level: 0.15`、`schedule: geometric` |
 
 > ResShift 的算法详解、练习题和自查清单见 [ResShift 学习说明](resshift.md)。想动手跑 ResShift，看 [学习路径 > 第六阶段](learning_path.md#第六阶段resshift-少步扩散超分)。
 
@@ -321,7 +317,7 @@ DDPM（逐步加噪/去噪）
  ↓ 引入条件输入
 SR3（条件扩散超分）
  ↓ 围绕残差简化过程
-ResShift（少步残差恢复）
+ResShift（少步 `x_0` 恢复）
 ```
 
 每一步只变一个核心概念。
@@ -338,7 +334,7 @@ VAE 教你潜变量、概率分布约束、重参数化。扩散模型教你时�
 
 学 SR3 时重点看 [trainer/sr3.py](../trainer/sr3.py)（无条件扩散怎么变成条件扩散）和 [models/sr3.py](../models/sr3.py)（为什么低清图和噪声图要拼接）。
 
-学 ResShift 时重点看 [data/sr_dataset.py](../data/sr_dataset.py)（样本从 `(image, label)` 变成 `(lr_up, hr)`）、[trainer/resshift.py](../trainer/resshift.py)（训练目标从一步回归变成多步残差恢复）、[models/resshift.py](../models/resshift.py)（调度器怎么构造中间态）。
+学 ResShift 时重点看 [data/sr_dataset.py](../data/sr_dataset.py)（样本从 `(image, label)` 变成 `(lr_up, hr)`）、[trainer/resshift.py](../trainer/resshift.py)（训练目标从噪声预测变成 `x_0` 预测）、[models/resshift.py](../models/resshift.py)（调度器怎么构造中间态）。
 
 ---
 
@@ -348,7 +344,7 @@ VAE 教你潜变量、概率分布约束、重参数化。扩散模型教你时�
 
 **DDPM 为什么不直接预测干净图而要预测噪声？** 从优化稳定性上，预测噪声更自然，也更容易和扩散过程对应。数学上两者等价（可以互相转换），但预测噪声的训练信号更稳定。
 
-**SR3 和 ResShift 是一回事吗？** 不是。SR3 预测噪声，从纯噪声开始采样；ResShift 预测残差，从低清图附近开始采样。SR3 更像标准条件扩散，ResShift 更强调残差和少步恢复。
+**SR3 和 ResShift 是一回事吗？** 不是。SR3 预测噪声，从纯噪声开始采样；ResShift 预测 `x_0`，从低清图附近开始采样。SR3 更像标准条件扩散，ResShift 更强调少步的 residual shifting 恢复。
 
 **为什么超分用 PSNR？** 超分是重建任务，关心生成结果和真值的像素误差。PSNR = 10 * log10(data_range² / MSE)。它不完美（和人眼感受不完全一致），但作为起点够用。更高级的还有 SSIM、LPIPS。
 

@@ -118,7 +118,7 @@ BaseTrainer（fit / train_one_epoch / evaluate / save_checkpoint）
              │
              ├── SuperResolutionTrainer  → 覆写 train_one_epoch（L1 残差 loss）
              ├── SR3Trainer              → 覆写 train_one_epoch（MSE 噪声预测 + GaussianDiffusion 调度器）
-             └── ResShiftTrainer         → 覆写 train_one_epoch（MSE 残差预测 + ResidualShiftScheduler）
+             └── ResShiftTrainer         → 覆写 train_one_epoch（MSE x0 预测 + ResidualShiftScheduler）
 ```
 
 `BaseTrainer` 统一处理设备选择、模型构建、优化器构建、checkpoint 保存、训练循环、验证循环、最优指标监控。具体任务只需覆写少量方法。
@@ -232,9 +232,9 @@ trainer/resshift.py → __init__()
 trainer/resshift.py → train_one_epoch()
   ↓ for lr, hr in train_loader:
   ↓   t = randint(0, timesteps)
-  ↓   shifted, residual = scheduler.q_sample(hr, lr, t)
-  ↓   predicted_residual = model(cat([shifted, lr], dim=1), t)
-  ↓   loss = MSE(predicted_residual, residual)
+  ↓   x_t, x0 = scheduler.q_sample(hr, lr, t)
+  ↓   predicted_x0 = model(cat([x_t, lr], dim=1), t)
+  ↓   loss = MSE(predicted_x0, x0)
 
 trainer/sr.py → evaluate()
   ↓ sr = scheduler.sample(model, lr)  # 15步恢复

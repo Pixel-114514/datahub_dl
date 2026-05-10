@@ -245,13 +245,13 @@ python main.py --config configs/sr/resshift.yaml
 
 ResShift 的核心变化：
 
-- **预测目标变了**：不再预测噪声，而是预测残差 `R = HR - LR_up`
+- **预测目标变了**：不再预测噪声，而是直接预测 `x_0 = HR`
 - **采样起点变了**：不再从纯噪声开始，而是从低清图附近开始
 - **调度器换了**：用 `ResidualShiftScheduler` 替代 `GaussianDiffusion`
 
-残差缩放调度的直觉：`t=0` 时残差保留完整（中间态接近目标图），`t=T` 时残差几乎消失（中间态接近低清图加噪声）。模型要学的是在任意时间步预测残差。
+论文里的 forward 是把 `x_0` 逐步往 `y_0` 方向 shift，并叠加与 `eta_t` 对应的噪声。模型要学的是在任意时间步下，从 `(x_t, y_0, t)` 恢复 `x_0`。
 
-推理时从 `condition + noise` 开始，逐步恢复残差，最后一步直接用预测残差重建，不加噪声。
+推理时从 `y_0 + noise` 开始，逐步根据 posterior mean / variance 从 `x_t` 还原到 `x_0`。
 
 可以试的事：
 
@@ -264,9 +264,9 @@ ResShift 的核心变化：
 
 - **SRResNet**：一步直接修图，快但表达能力有限
 - **SR3**：标准条件扩散，从纯噪声开始，步数较多
-- **ResShift**：围绕残差设计的少步恢复，从低清图附近开始
+- **ResShift**：围绕 LR-HR 之间的 residual shifting 设计的少步恢复，从低清图附近开始
 
-> ResShift 的算法细节（残差迁移公式、调度器构造、推理过程、和官方版的差异）详见 [ResShift 学习说明](resshift.md)。知识点层面的对比见 [生成模型知识补充](generative_basics.md#resshift)。
+> ResShift 的算法细节（shifting 公式、调度器构造、推理过程、和官方版的差异）详见 [ResShift 学习说明](resshift.md)。知识点层面的对比见 [生成模型知识补充](generative_basics.md#resshift)。
 
 ---
 
@@ -303,4 +303,4 @@ ResShift 的核心变化：
 | DDPM | `(x_t, t)` | 噪声预测 | Noise Loss ↓ | T 步去噪 |
 | SRResNet | `(lr_up)` | L1 残差 | PSNR ↑ | 单步前向 |
 | SR3 | `([x_t, lr], t)` | 噪声预测 | PSNR ↑ | T 步条件去噪 |
-| ResShift | `([shifted, lr], t)` | 残差预测 | PSNR ↑ | 少步残差恢复 |
+| ResShift | `([x_t, y_0], t)` | `x_0` 预测 | PSNR ↑ | 少步恢复 |

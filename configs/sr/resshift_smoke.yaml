@@ -1,15 +1,15 @@
 seed: 42
 
-device: cuda
+device: cpu
 
 save_dir: ./checkpoints
-save_interval: 5
-exp_name: resshift_mnist_toy
+save_interval: 1
+exp_name: resshift_smoke
 
 train:
-  epochs: 10
+  epochs: 1
   lr: 0.0002
-  batch_size: 128
+  batch_size: 8
 
 trainer_name: resshift
 
@@ -18,16 +18,16 @@ model:
   params:
     in_channels: 2
     out_channels: 1
-    model_channels: 64
-    num_res_blocks: 2
+    model_channels: 32
+    num_res_blocks: 1
     attention_resolutions: [7, 14]
-    channel_mult: [1, 2, 2]
+    channel_mult: [1, 2]
     dropout: 0.0
-    num_heads: 4
+    num_heads: 2
     image_size: 28
 
 resshift:
-  timesteps: 15
+  timesteps: 8
   schedule: geometric
   noise_level: 0.15
   shift_power: 0.3
@@ -42,3 +42,5 @@ data:
   upsample_mode: bicubic
   noise_std: 0.0
   value_range: zero_one
+  max_train_samples: 32
+  max_val_samples: 16

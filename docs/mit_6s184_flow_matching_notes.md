@@ -178,14 +178,14 @@ L = E_{t, x_0, x_1} [ ||v_θ(x_t, t) - u_t(x_t | x_1)||² ]
 
 虽然仓库没有 Flow Matching 实现，但可以用现有代码建立直觉：
 
-**ResShift 的残差缩放 ≈ Flow Matching 的线性插值路径**
+**ResShift 的 shifting 路径 ≈ Flow Matching 的插值路径**
 
 ```python
-# ResShift: shifted = condition + scale * residual + noise_scale * noise
+# ResShift: x_t = x_0 + eta_t * (y_0 - x_0) + kappa * sqrt(eta_t) * noise
 # Flow Matching: x_t = (1-t) * x_0 + t * x_1
 ```
 
-两者都在两个端点之间做插值。ResShift 插值的是低清图和高清图之间的残差，Flow Matching 插值的是噪声和数据之间的路径。
+两者都在两个端点之间定义路径。ResShift 的路径连接 `x_0` 和 `y_0`，Flow Matching 的路径连接两个分布端点。
 
 **DDPM 的噪声预测 ≈ Flow Matching 的速度场预测**
 

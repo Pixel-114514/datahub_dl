@@ -28,9 +28,9 @@ python main.py --config configs/sr/resshift.yaml
 | DDPM | 生成 | 时间步、噪声预测、多步采样 |
 | SRResNet | 超分 | 残差学习、PSNR、数据包装 |
 | SR3 | 超分 | 条件扩散、通道拼接 |
-| ResShift | 超分 | 残差迁移、少步采样 |
+| ResShift | 超分 | residual shifting、少步采样 |
 
-仓库里的 ResShift 是简化实现，保留"残差迁移 + 少步数采样"的核心思路，不是官方仓库的完整复现。
+仓库里的 ResShift 是教学版实现，当前已对齐论文的核心训练/采样形式：`([x_t, y_0], t) -> x_0`，但仍不是官方仓库的完整复现。
 
 ## 教学路线安排
 
@@ -42,7 +42,7 @@ python main.py --config configs/sr/resshift.yaml
   → DDPM（从一步到位到多步迭代，引入时间步）
    → SRResNet（从生成到恢复，引入残差学习）
     → SR3（无条件扩散 → 条件扩散，引入条件输入）
-     → ResShift（预测噪声 → 预测残差，引入少步采样）
+     → ResShift（预测噪声 → 预测 `x_0`，引入少步采样）
 ```
 
 为什么这样排：
@@ -51,7 +51,7 @@ python main.py --config configs/sr/resshift.yaml
 - **VAE → DDPM**：从"一步编解码"转到"多步加噪去噪"，理解时间步和噪声调度
 - **DDPM → SRResNet**：从"无条件生成"转到"条件恢复"，理解残差学习和 PSNR
 - **SRResNet → SR3**：只变一件事——把低清条件图拼到输入里，网络结构不变
-- **SR3 → ResShift**：只变一件事——预测目标从噪声换成残差，采样起点从纯噪声换成低清图附近
+- **SR3 → ResShift**：关键变化是 forward/reverse 过程围绕 LR 条件重写，预测目标从噪声换成 `x_0`，采样起点从纯噪声换成低清图附近
 
 每一步之间的跨度都控制在一个核心概念以内，不会出现"从 A 直接跳到 D"的情况。
 
@@ -136,7 +136,7 @@ simple_dl_project/
 |------|------|----------|----------|------|
 | SRResNet | 1 | 残差 | — | [srresnet.yaml](configs/sr/srresnet.yaml) |
 | SR3 | 50-100 | 噪声 | 纯噪声 | [sr3.yaml](configs/sr/sr3.yaml) |
-| ResShift | ~15 | 残差 | 低清图附近 | [resshift.yaml](configs/sr/resshift.yaml) |
+| ResShift | ~15 | x0（HR） | 低清图附近 | [resshift.yaml](configs/sr/resshift.yaml) |
 
 三种方法的详细对比见 [生成模型知识补充 > ResShift](docs/generative_basics.md#resshift) 和 [ResShift 学习说明](docs/resshift.md)。
 

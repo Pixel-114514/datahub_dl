@@ -12,7 +12,10 @@ class ResShiftTrainer(BaseSRTrainer):
         self.scheduler = ResidualShiftScheduler(
             timesteps=resshift_cfg.get("timesteps", 15),
             noise_level=resshift_cfg.get("noise_level", 0.2),
-            schedule=resshift_cfg.get("schedule", "linear"),
+            schedule=resshift_cfg.get("schedule", "geometric"),
+            shift_power=resshift_cfg.get("shift_power", 0.3),
+            eta_start=resshift_cfg.get("eta_start"),
+            eta_end=resshift_cfg.get("eta_end", 0.999),
         )
         super().__init__(config, train_loader, val_loader)
 
@@ -30,9 +33,9 @@ class ResShiftTrainer(BaseSRTrainer):
 
             batch_size = lr.size(0)
             t = torch.randint(0, self.scheduler.timesteps, (batch_size,), device=self.device)
-            shifted, residual = self.scheduler.q_sample(hr, lr, t)
-            predicted_residual = self.model(torch.cat([shifted, lr], dim=1), t)
-            loss = self.criterion(predicted_residual, residual)
+            shifted, target_x0 = self.scheduler.q_sample(hr, lr, t)
+            predicted_x0 = self.model(torch.cat([shifted, lr], dim=1), t)
+            loss = self.criterion(predicted_x0, target_x0)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -42,7 +45,7 @@ class ResShiftTrainer(BaseSRTrainer):
             total_samples += batch_size
 
         avg_loss = total_loss / max(total_samples, 1)
-        log(f"Epoch [{epoch+1}] Train Residual MSE: {avg_loss:.6f}")
+        log(f"Epoch [{epoch+1}] Train x0 MSE: {avg_loss:.6f}")
         return avg_loss
 
     def infer(self, lr):

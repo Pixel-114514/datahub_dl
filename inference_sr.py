@@ -111,7 +111,10 @@ def infer_sr(model, lr, trainer_name, cfg, device):
         scheduler = ResidualShiftScheduler(
             timesteps=resshift_cfg.get("timesteps", 15),
             noise_level=resshift_cfg.get("noise_level", 0.2),
-            schedule=resshift_cfg.get("schedule", "linear"),
+            schedule=resshift_cfg.get("schedule", "geometric"),
+            shift_power=resshift_cfg.get("shift_power", 0.3),
+            eta_start=resshift_cfg.get("eta_start"),
+            eta_end=resshift_cfg.get("eta_end", 0.999),
         )
         return scheduler.sample(model, lr, clamp_range=get_clamp_range(cfg))
 
