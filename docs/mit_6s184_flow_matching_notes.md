@@ -258,13 +258,13 @@ flow_matching:
 
 ### 为什么值得放进笔记
 
-当前仓库的知识线可以看成 Flow Matching 的前置：
+当前仓库的知识线：
 
 ```
-DDPM → SR3 → ResShift → Flow Matching
+DDPM → Flow Matching（理论）→ SR3 → ResShift
 ```
 
-先建立 DDPM 直觉，再理解条件恢复，最后才是课程里更现代的 flow matching 视角。直接啃流匹配公式而没有 DDPM 基础，会非常抽象。
+先建立 DDPM 直觉，再理解 Flow Matching 的连续时间视角，然后应用到条件恢复。Flow Matching 理论放在 DDPM 之后、条件恢复之前，这样后续看 SR3 和 ResShift 时能有更统一的理解框架。
 
 ---
 
@@ -446,17 +446,17 @@ class ResidualBlock(TimestepBlock):
 第 3 步：扩散模型
   models/ddpm/diffusion.py + trainer/diffusion.py
 
-第 4 步：条件扩散
+第 4 步：Flow Matching 理论（本文档）
+  建立连续时间视角，为后续条件恢复打基础
+
+第 5 步：条件扩散
   models/sr3.py + trainer/sr3.py
 
-第 5 步：高效恢复扩散
+第 6 步：高效恢复扩散
   trainer/resshift.py + docs/resshift.md
-
-第 6 步：课程理论对照
-  本文档
 ```
 
-先建立项目骨架，再建立 VAE 和 DDPM 基础认知，再从 SR3 进入条件扩散，最后看课程里更现代的 flow matching 视角。直接啃流匹配公式而没有 DDPM 和条件恢复直觉，会非常抽象。
+先建立项目骨架，再建立 VAE 和 DDPM 基础认知，然后看课程里更现代的 flow matching 视角，再进入条件扩散。直接啃流匹配公式而没有 DDPM 基础，会非常抽象。
 
 ---
 

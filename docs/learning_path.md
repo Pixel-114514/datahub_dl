@@ -11,10 +11,11 @@
 1. 手写数字识别
 2. VAE 图片生成
 3. DDPM 基础扩散
-4. 超分基线
-5. SR3 条件扩散超分
-6. ResShift 少步扩散超分
-7. 工程实践与扩展练习
+4. MIT 6.S184 Flow Matching 理论
+5. 超分基线
+6. SR3 条件扩散超分
+7. ResShift 少步扩散超分
+8. 工程实践与扩展练习
 
 > **训练时间**：每个阶段的预估时间标注在各阶段末尾。想快速验证流程的话，在配置里加 `data.max_train_samples: 512` 和 `data.max_val_samples: 128`，不影响对代码的理解。
 
@@ -164,11 +165,70 @@ DDPM 的关键概念：
 
 扩散模型通常把像素从 [0,1] 映射到 [-1,1]（配置里 `value_range: minus_one_one`），这样加噪后值域对称，训练更稳定。
 
-> DDPM 的知识点（时间步、噪声预测、采样为什么慢、score matching 的关系）详见 [生成模型知识补充](generative_basics.md#ddpm)。想深入理论可以看 [MIT 课程对照笔记](mit_6s184_flow_matching_notes.md)。
+> DDPM 的知识点（时间步、噪声预测、采样为什么慢、score matching 的关系）详见 [生成模型知识补充](generative_basics.md#ddpm)。
 
 ---
 
-## 第四阶段：超分基线
+## 第四阶段：MIT 6.S184 Flow Matching 理论
+
+学完 DDPM 后，你已经理解了"逐步去噪"的核心思想。现在换个视角看同一个问题：从连续时间的角度理解生成过程。
+
+> 这个阶段以理论学习为主，暂时没有对应的代码实现。建议花 1-2 小时阅读文档，建立直觉。
+
+MIT 6.S184 课程的核心主线：
+
+```
+生成就是采样 → ODE/SDE → Flow Matching → Score Matching → Guidance
+```
+
+### 关键概念
+
+**Flow Matching vs DDPM**：
+
+| | DDPM | Flow Matching |
+|---|------|---------------|
+| 训练目标 | 预测噪声 ε | 预测速度场 v |
+| 采样方式 | 离散去噪步骤 | ODE 积分 |
+| 路径定义 | β schedule 隐式定义 | 显式定义插值路径 |
+| 时间范围 | `t ∈ {0,...,T}` | `t ∈ [0, 1]` |
+
+**直觉类比**：
+- DDPM 像"猜谜游戏"：给你模糊图，猜加了多少噪声
+- Flow Matching 像"导航系统"：告诉你每个位置该往哪走
+
+**概率路径**：从噪声 `x_0` 到数据 `x_1` 的线性插值 `x_t = (1-t) · x_0 + t · x_1`
+
+**速度场**：网络学习每个位置该往哪移动，`v_t = x_1 - x_0`
+
+### 和仓库代码的联系
+
+虽然仓库还没有 Flow Matching 实现，但可以用已有代码建立直觉：
+
+- **ResShift 的 shifting 路径 ≈ Flow Matching 的插值路径**
+- **DDPM 的噪声预测 ≈ Flow Matching 的速度场预测**
+
+```python
+# ResShift: x_t = x_0 + eta_t * (y_0 - x_0) + kappa * sqrt(eta_t) * noise
+# Flow Matching: x_t = (1-t) * x_0 + t * x_1
+```
+
+### 为什么放在这里
+
+```
+DDPM（离散时间，预测噪声）
+ ↓ 换视角：离散 → 连续，噪声 → 速度场
+MIT Flow Matching（连续时间，预测速度场）
+ ↓ 应用到图像恢复
+SRResNet / SR3 / ResShift
+```
+
+先建立 DDPM 直觉，再理解连续时间视角，最后才是条件恢复应用。
+
+详细内容见 [MIT 课程对照笔记](mit_6s184_flow_matching_notes.md)。
+
+---
+
+## 第五阶段：超分基线
 
 前面三步分别是分类和生成，现在进入"图像恢复"——已有低质量图，目标是恢复出高质量图。
 
@@ -199,7 +259,7 @@ SRResNet 的思路是残差学习：网络不直接输出超分图，而是输�
 
 ---
 
-## 第五阶段：SR3 条件扩散超分
+## 第六阶段：SR3 条件扩散超分
 
 这一步是从 DDPM 到 ResShift 之间最重要的桥梁。
 
@@ -233,7 +293,7 @@ SR3 的推理仍然是从纯噪声开始，逐步去噪，每一步都参考低�
 
 ---
 
-## 第六阶段：ResShift 少步扩散超分
+## 第七阶段：ResShift 少步扩散超分
 
 SR3 证明了条件扩散能做超分。ResShift 追问的是另一个问题：恢复任务里输入已经带了大量信息，有必要从纯噪声慢慢采样吗？
 
@@ -270,7 +330,7 @@ ResShift 的核心变化：
 
 ---
 
-## 第七阶段：工程实践与扩展
+## 第八阶段：工程实践与扩展
 
 前六步是从模型角度学的。这一步是从工程角度看整个项目。
 
@@ -301,6 +361,7 @@ ResShift 的核心变化：
 | CNN | `(image)` | 交叉熵 | 准确率 ↑ | 无 |
 | VAE | `(image)` | 重构 + KL | Loss ↓ | 采样 z → 解码 |
 | DDPM | `(x_t, t)` | 噪声预测 | Noise Loss ↓ | T 步去噪 |
+| MIT Flow Matching | `(x_t, t)` | 速度场预测 | 理论学习 | ODE 积分 |
 | SRResNet | `(lr_up)` | L1 残差 | PSNR ↑ | 单步前向 |
 | SR3 | `([x_t, lr], t)` | 噪声预测 | PSNR ↑ | T 步条件去噪 |
 | ResShift | `([x_t, y_0], t)` | `x_0` 预测 | PSNR ↑ | 少步恢复 |

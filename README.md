@@ -40,16 +40,18 @@ python main.py --config configs/sr/resshift.yaml
 分类（学会训练）
  → VAE（从判别到生成，引入潜变量）
   → DDPM（从一步到位到多步迭代，引入时间步）
-   → SRResNet（从生成到恢复，引入残差学习）
-    → SR3（无条件扩散 → 条件扩散，引入条件输入）
-     → ResShift（预测噪声 → 预测 `x_0`，引入少步采样）
+   → MIT 6.S184 Flow Matching（从离散到连续，引入速度场和 ODE 视角）
+    → SRResNet（从生成到恢复，引入残差学习）
+     → SR3（无条件扩散 → 条件扩散，引入条件输入）
+      → ResShift（预测噪声 → 预测 `x_0`，引入少步采样）
 ```
 
 为什么这样排：
 
 - **分类 → VAE**：从"做判断"转到"建模分布"，先搞懂潜变量和 loss 由多项组成
 - **VAE → DDPM**：从"一步编解码"转到"多步加噪去噪"，理解时间步和噪声调度
-- **DDPM → SRResNet**：从"无条件生成"转到"条件恢复"，理解残差学习和 PSNR
+- **DDPM → MIT Flow Matching**：从离散时间扩散到连续时间流匹配，理解速度场和 ODE 采样
+- **MIT Flow Matching → SRResNet**：从生成建模转到图像恢复，理解残差学习和 PSNR
 - **SRResNet → SR3**：只变一件事——把低清条件图拼到输入里，网络结构不变
 - **SR3 → ResShift**：关键变化是 forward/reverse 过程围绕 LR 条件重写，预测目标从噪声换成 `x_0`，采样起点从纯噪声换成低清图附近
 
@@ -57,17 +59,47 @@ python main.py --config configs/sr/resshift.yaml
 
 详细的学习路径（每阶段跑什么、看什么代码、预期输出、常见问题）见 [docs/learning_path.md](docs/learning_path.md)。
 
+## 课程安排
+
+| 阶段 | 主题 | 核心内容 | 相关代码/文档 | 时间 |
+|------|------|----------|---------------|------|
+| 1 | [手写数字识别](docs/learning_path.md#第一阶段手写数字识别) | CNN/ResNet 基础 | [cnn.yaml](configs/classification/cnn.yaml) · [main.py](main.py) · [trainer/base.py](trainer/base.py) · [models/cnn.py](models/cnn.py) | 1 周 |
+| 2 | [VAE 图片生成](docs/learning_path.md#第二阶段vae-图片生成) | 潜变量、KL散度、重参数化 | [vae.yaml](configs/generate/vae.yaml) · [models/vae.py](models/vae.py) · [trainer/vae.py](trainer/vae.py) · [inference_vae.py](inference_vae.py) | 1 周 |
+| 3 | [DDPM 扩散模型](docs/learning_path.md#第三阶段ddpm-基础扩散) | 时间步、噪声预测、多步采样 | [ddpm.yaml](configs/generate/ddpm.yaml) · [models/ddpm/](models/ddpm/) · [trainer/diffusion.py](trainer/diffusion.py) | 2 周 |
+| 4 | [MIT Flow Matching](docs/learning_path.md#第四阶段mit-6s184-flow-matching-理论) ⚠️ 开发中 | 连续时间视角、速度场、ODE | [mit_6s184_flow_matching_notes.md](docs/mit_6s184_flow_matching_notes.md) · 代码实现待完成 | 2 周 |
+| 5 | [超分与条件扩散](docs/learning_path.md#第五阶段超分基线) | SRResNet + SR3 | [srresnet.yaml](configs/sr/srresnet.yaml) · [sr3.yaml](configs/sr/sr3.yaml) · [models/sr.py](models/sr.py) · [models/sr3.py](models/sr3.py) · [trainer/sr.py](trainer/sr.py) · [trainer/sr3.py](trainer/sr3.py) | 1 周 |
+| 6 | [ResShift 少步扩散超分](docs/learning_path.md#第七阶段resshift-少步扩散超分) | residual shifting、少步采样 | [resshift.yaml](configs/sr/resshift.yaml) · [models/resshift.py](models/resshift.py) · [trainer/resshift.py](trainer/resshift.py) · [docs/resshift.md](docs/resshift.md) | 1 周 |
+| 7 | [工程实践与扩展](docs/learning_path.md#第八阶段工程实践与扩展) | Git 协作 + 代码改造 | [git_convention.md](docs/git_convention.md) · [resshift.md](docs/resshift.md)（参考论文） | 1 周 |
+
+**总计：9 周**
+
+> ⚠️ 标记"开发中"的阶段，代码实现尚未完成，当前只有理论文档。学员可先学习理论，后续补充代码实践。
+
+### 第七阶段具体任务
+
+1. **Fork SR3 仓库**：从提供的 SR3 代码仓库 fork 到个人账号
+2. **阅读 ResShift 论文**：理解 residual shifting 的核心思想（参考 [ResShift 学习说明](docs/resshift.md)）
+3. **完成代码改造**：
+   - 修改调度器：从 `GaussianDiffusion` 改为 `ResidualShiftScheduler`
+   - 修改训练目标：从预测噪声改为预测 `x_0`
+   - 修改采样起点：从纯噪声改为低清图附近
+4. **提交代码**：按照 [Git 协作规范](docs/git_convention.md) 提交，每个 commit 是一个完整的逻辑单元
+5. **创建 Pull Request**：等待代码审查
+
+> 详细的 Git 工作流程和提交规范见 [docs/git_convention.md](docs/git_convention.md)。
+
 ## 文档导航
 
 | 文档 | 适合谁 | 讲什么 |
 |------|--------|--------|
 | [项目架构导读](docs/architecture.md) | 第一次来的学员 | 四层结构（config / main / trainer / model / data）、调用链、注册表模式 |
-| [学习路径](docs/learning_path.md) | 跟着走的学员 | 七个阶段的具体操作、代码指引、预期输出 |
+| [学习路径](docs/learning_path.md) | 跟着走的学员 | 八个阶段的具体操作、代码指引、预期输出 |
 | [生成模型知识补充](docs/generative_basics.md) | 跑通代码后想搞懂原理的学员 | VAE、DDPM、SR3、ResShift 的核心概念和代码对应 |
+| [MIT 课程对照笔记](docs/mit_6s184_flow_matching_notes.md) | 学完 DDPM 后想深入理论的学员 | MIT 6.S184 课程与仓库代码的映射，flow matching / score matching |
 | [ResShift 学习说明](docs/resshift.md) | 学到 ResShift 阶段的学员 | 算法详解、和 SR3 的对比、从 SR3 改造的路线、练习题 |
-| [MIT 课程对照笔记](docs/mit_6s184_flow_matching_notes.md) | 想深入理论的学员 | MIT 6.S184 课程与仓库代码的映射，flow matching / score matching |
+| [Git 协作规范](docs/git_convention.md) | 所有学员 | 分支管理、提交规范、代码审查流程 |
 
-建议按上面的顺序读。先看架构建立全局认知，再按学习路径走，遇到不懂的概念查 generative_basics，学到 ResShift 时看 resshift.md，想补理论看 MIT 笔记。
+建议按上面的顺序读。先看架构建立全局认知，再按学习路径走，遇到不懂的概念查 generative_basics，学完 DDPM 后看 MIT 笔记补理论，学到 ResShift 时看 resshift.md，工程实践阶段严格遵守 Git 协作规范。
 
 ## 训练入口
 
